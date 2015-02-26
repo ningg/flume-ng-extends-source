@@ -3,4 +3,16 @@
   <groupId>com.github.ningg.flume.source</groupId>
   <artifactId>flume-ng-extends-source</artifactId>
   <version>0.8.0</version>
+  
+  <dependencies>
+  	<dependency>
+  		<groupId>org.apache.flume</groupId>
+  		<artifactId>flume-ng-core</artifactId>
+  		<version>1.5.2</version>
+  	</dependency>
+  
+  </dependencies>
+  
+  
+  
 </project>
