@@ -104,7 +104,7 @@ __特别说明__：
 详细配置参数如下表：
 
 |Property Name|	Default|	Description|
-|--|--|--|
+|------|------|------|
 |**channels**|	–	 |  |
 |**type**|	–	|The component type name, needs to be `spooldir`.|
 |**spoolDir**|	–	|The directory from which to read files from.|
