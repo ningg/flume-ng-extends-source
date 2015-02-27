@@ -101,6 +101,8 @@ __特别说明__：
 	
 ####SpoolDirectoryTailFileSource的配置参数
 
+详细配置参数如下表：
+
 |Property Name|	Default|	Description|
 |--|--|--|
 |**channels**|	–	 |  |
