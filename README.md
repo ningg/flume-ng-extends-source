@@ -87,9 +87,81 @@ __特别说明__：
 
 
 
+###使用方法
+
+如何使用SpoolDirctoryTailFileSource，具体：
+
+* 打包工程，并将其配置为Flume的插件：
+	* 将工程导出为jar包：`flume-ng-extends-source-0.8.0.jar`；
+	* 在`FLUME_HOME`下，创建目录：`$FLUME_HOME/plugins.d/spool-dir-tail-file-source/lib`；
+	* 将`flume-ng-extends-source-0.8.0.jar`放到`$FLUME_HOME/plugins.d/spool-dir-tail-file-source/lib`目录下；
+	* __补充说明__：flume下安装插件的细节，参考[flume官网][Apache Flume NG--User Guide]
+* 在配置文件中配置SpoolDirectoryTailFileSource，使其生效：
+	* 下文将给出一个配置样板，同时会详细说明每个配置参数；
+	
+####SpoolDirectoryTailFileSource的配置参数
+
+|Property Name|	Default|	Description|
+|--|--|--|
+|**channels**|	–	 |  |
+|**type**|	–	|The component type name, needs to be `spooldir`.|
+|**spoolDir**|	–	|The directory from which to read files from.|
+|fileSuffix|	`.COMPLETED`|	Suffix to append to completely ingested files|
+|deletePolicy|	`never`|	When to delete completed files: `never` or `immediate`|
+|fileHeader|	`false`|	Whether to add a header storing the absolute path filename.|
+|fileHeaderKey|	`file`|	Header key to use when appending absolute path filename to event header.|
+|basenameHeader|	`false`|	Whether to add a header storing the basename of the file.|
+|basenameHeaderKey|	`basename`|	Header Key to use when appending basename of file to event header.|
+|ignorePattern|	`^$`	|Regular expression specifying which files to ignore (skip)|
+|trackerDir|	`.flumespooltail`|	Directory to store metadata related to processing of files. If this path is not an absolute path, then it is interpreted as relative to the spoolDir.|
+|consumeOrder|	`oldest`	|In which order files in the spooling directory will be consumed `oldest`, `youngest` and `random`. In case of `oldest` and `youngest`, the last modified time of the files will be used to compare the files. In case of a tie, the file with smallest laxicographical order will be consumed first. In case of `random` any file will be picked randomly. When using `oldest` and `youngest` the whole directory will be scanned to pick the oldest/youngest file, which might be slow if there are a large number of files, while using random may cause old files to be consumed very late if new files keep coming in the spooling directory.|
+|maxBackoff	|4000	|The maximum time (in millis) to wait between consecutive attempts to write to the channel(s) if the channel is full. The source will start at a low backoff and increase it exponentially each time the channel throws a ChannelException, upto the value specified by this parameter.|
+|batchSize	|100|	Granularity at which to batch transfer to the channel|
+|inputCharset|	`UTF-8`|	Character set used by deserializers that treat the input file as text.|
+|decodeErrorPolicy|	`FAIL`|	What to do when we see a non-decodable character in the input file. `FAIL`: Throw an exception and fail to parse the file. `REPLACE`: Replace the unparseable character with the “replacement character” char, typically Unicode `U+FFFD`. `IGNORE`: Drop the unparseable character sequence.|
+|deserializer|	`LINE`|	Specify the deserializer used to parse the file into events. Defaults to parsing each line as an event. The class specified must implement `EventDeserializer.Builder`.|
+|deserializer.*	| 	|Varies per event deserializer.*(设置每个deseralizer的实现类，对应的配置参数)*|
+|bufferMaxLines|	–	|(Obselete) This option is now ignored.|
+|bufferMaxLineLength|	5000|	(Deprecated) Maximum length of a line in the commit buffer. Use `deserializer.maxLineLength` instead.|
+|selector.type|	`replicating`|	`replicating` or `multiplexing`|
+|selector.*	| 	|Depends on the `selector.type` value|
+|interceptors|	–	|Space-separated list of interceptors|
+|interceptors.*	|  |  |
+
+
+**疑问**：上述，selector和interceptor的作用？
+
+* selector：通过event对应的Header，来将event发送到对应的channel中；
+* interceptor：？
+
+####SpoolDirectoryTailFileSource的配置样板文件
+
+在flume的配置文件`flume-conf.properties`中，配置`agent`下`spoolDirTailFile` source：
+
+	# Spooling dir and tail file Source 
+	agent.sources.spoolDirTailFile.type = com.github.ningg.flume.source.SpoolDirectoryTailFileSource
+	agent.sources.spoolDirTailFile.spoolDir = /home/storm/goodjob/spoolDir
+	agent.sources.spoolDirTailFile.fileSuffix = .COMPLETED
+	agent.sources.spoolDirTailFile.ignorePattern = ^$
+	agent.sources.spoolDirTailFile.targetPattern = .*(\\d){4}-(\\d){2}-(\\d){2}.*
+	agent.sources.spoolDirTailFile.targetFilename = yyyy-MM-dd
+	agent.sources.spoolDirTailFile.trackerDir = .flumespooltail
+	agent.sources.spoolDirTailFile.consumeOrder = oldest
+	agent.sources.spoolDirTailFile.batchSize = 100
+	agent.sources.spoolDirTailFile.inputCharset = UTF-8
+	agent.sources.spoolDirTailFile.decodeErrorPolicy = REPLACE
+	agent.sources.spoolDirTailFile.deserializer = LINE
+
+
+
+
 ###潜在问题
 
-win server 2003下，指定目录的操作权限问题，即，启动的进程是否有目录的写权限；
+几点：
+
+* win server 2003下，指定目录的操作权限问题，即，启动的进程是否有目录的写权限；
+* 直接使用Spooling Directory Source方式，默认已经放入spool directory的文件，不能再进行修改，否则异常；
+	* 解决思路：去掉限制即可。
 
 
 
@@ -118,6 +190,7 @@ win server 2003下，指定目录的操作权限问题，即，启动的进程�
 
 ##参考来源
 
+* [Apache Flume NG--User Guide][Apache Flume NG--User Guide]
 
 
 
@@ -131,6 +204,5 @@ win server 2003下，指定目录的操作权限问题，即，启动的进程�
 
 
 
-
-
+[Apache Flume NG--User Guide]:			http://flume.apache.org/FlumeUserGuide.html
 
