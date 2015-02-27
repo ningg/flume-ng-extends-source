@@ -3,6 +3,11 @@
   <groupId>com.github.ningg.flume.source</groupId>
   <artifactId>flume-ng-extends-source</artifactId>
   <version>0.8.0</version>
+
+  <properties>
+  	<!-- set replicate and compile charset -->
+  	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
   
   <dependencies>
   	<dependency>
@@ -10,7 +15,6 @@
   		<artifactId>flume-ng-core</artifactId>
   		<version>1.5.2</version>
   	</dependency>
-  
   </dependencies>
   
   

@@ -2,7 +2,19 @@
 
 Extends source of Flume NG for tailing files and folders.
 
+* SpoolDirectoryTailFile：spooling directory, collect all the historical files and tail the target file;
+* TailFile：TODO
+* TailDirectory：TODO
 
+
+
+TODO：
+
+* 整理英文版本说明文档；
+* 添加测试部分；
+* 学习他人的README；
+	* kafka source；
+	* webmagic；
 
 
 ##场景
@@ -92,7 +104,7 @@ __特别说明__：
 如何使用SpoolDirctoryTailFileSource，具体：
 
 * 打包工程，并将其配置为Flume的插件：
-	* 将工程导出为jar包：`flume-ng-extends-source-0.8.0.jar`；
+	* 执行命令`mvn clean package`，将工程导出为jar包：`flume-ng-extends-source-0.8.0.jar`；
 	* 在`FLUME_HOME`下，创建目录：`$FLUME_HOME/plugins.d/spool-dir-tail-file-source/lib`；
 	* 将`flume-ng-extends-source-0.8.0.jar`放到`$FLUME_HOME/plugins.d/spool-dir-tail-file-source/lib`目录下；
 	* __补充说明__：flume下安装插件的细节，参考[flume官网][Apache Flume NG--User Guide]
@@ -101,7 +113,7 @@ __特别说明__：
 	
 ####SpoolDirectoryTailFileSource的配置参数
 
-详细配置参数如下表：
+详细配置参数如下表（Required properties are in **bold**.）：
 
 |Property Name|	Default|	Description|
 |------|------|------|
@@ -115,6 +127,8 @@ __特别说明__：
 |basenameHeader|	`false`|	Whether to add a header storing the basename of the file.|
 |basenameHeaderKey|	`basename`|	Header Key to use when appending basename of file to event header.|
 |ignorePattern|	`^$`	|Regular expression specifying which files to ignore (skip)|
+|**targetPattern**|	`.*(\\d){4}-(\\d){2}-(\\d){2}.*`	|Regular expression specifying which files to collect|
+|**targetFilename**|	`yyyy-MM-dd`	|The Target File's DateFormat, which refers to [java.text.SimpleDateFormat][java.text.SimpleDateFormat]. Infact, there is strong relationship between Property: **targetFilename** and Property: **targetPattern** |
 |trackerDir|	`.flumespooltail`|	Directory to store metadata related to processing of files. If this path is not an absolute path, then it is interpreted as relative to the spoolDir.|
 |consumeOrder|	`oldest`	|In which order files in the spooling directory will be consumed `oldest`, `youngest` and `random`. In case of `oldest` and `youngest`, the last modified time of the files will be used to compare the files. In case of a tie, the file with smallest laxicographical order will be consumed first. In case of `random` any file will be picked randomly. When using `oldest` and `youngest` the whole directory will be scanned to pick the oldest/youngest file, which might be slow if there are a large number of files, while using random may cause old files to be consumed very late if new files keep coming in the spooling directory.|
 |maxBackoff	|4000	|The maximum time (in millis) to wait between consecutive attempts to write to the channel(s) if the channel is full. The source will start at a low backoff and increase it exponentially each time the channel throws a ChannelException, upto the value specified by this parameter.|
@@ -144,6 +158,7 @@ __特别说明__：
 	agent.sources.spoolDirTailFile.type = com.github.ningg.flume.source.SpoolDirectoryTailFileSource
 	agent.sources.spoolDirTailFile.spoolDir = /home/storm/goodjob/spoolDir
 	agent.sources.spoolDirTailFile.fileSuffix = .COMPLETED
+	agent.sources.spoolDirTailFile.deletePolicy = never 
 	agent.sources.spoolDirTailFile.ignorePattern = ^$
 	agent.sources.spoolDirTailFile.targetPattern = .*(\\d){4}-(\\d){2}-(\\d){2}.*
 	agent.sources.spoolDirTailFile.targetFilename = yyyy-MM-dd
@@ -155,6 +170,19 @@ __特别说明__：
 	agent.sources.spoolDirTailFile.deserializer = LINE
 
 
+####约定条件
+
+几个约束：
+
+* 按日期，每日生成一个新日志文件；
+* 只以追加方式写入当日的日志文件；
+* 不会删除当日的日志文件；
+	* 重启Flume agent进程，不会导致数据丢失、数据重发；
+	* 解决思路：能否自动重启Flume agent进程，或者只启动收集数据的线程？还没有思路。
+* 不会在同一目录下，生成名称完全相同的文件；*（当`deletePolicy`=`immediate`时，无此限制）*
+	* 重启Flume agent进程，不会导致数据丢失、数据重发；
+	* 解决思路：技术上解决不是问题，关键是策略，当文件名称相同时，如何应对；
+
 
 
 ###潜在问题
@@ -164,7 +192,11 @@ __特别说明__：
 * win server 2003下，指定目录的操作权限问题，即，启动的进程是否有目录的写权限；
 * 直接使用Spooling Directory Source方式，默认已经放入spool directory的文件，不能再进行修改，否则异常；
 	* 解决思路：去掉限制即可。
-
+* 读取日志文件内容的线程，抛出异常之后，停止工作，仅当重启整个Flume Agent时，才会继续收集文件；当前线程无法自动重启；几种情况：
+	* 正在监听的文件，被强制删除，线程终止；即，实现`tail -f`功能，但没有实现`tail -F`功能（本质`--follow=name --retry`）
+	* 当历史日志文件不删除时，如果有历史日志的重名文件添加到spoolDir中，则抛出异常，线程终止；
+	* 思考：能否借鉴Exec Source中的restart机制，实现当进程存活时，能够自动重启线程；
+	* 有人定制了Flume-OG中的tail source，使其能够适应Flume-NG环境，github上有代码，可以借鉴。
 
 
 
@@ -181,11 +213,6 @@ __特别说明__：
 * 处理速率：相同硬件下，更节约计算机资源；
 
 
-文件命名：
-
-* SpoolDirectoryTailFile
-* TailFile
-* TailDirectory
 
 
 
@@ -193,8 +220,8 @@ __特别说明__：
 ##参考来源
 
 * [Apache Flume NG--User Guide][Apache Flume NG--User Guide]
-
-
+* [java.text.SimpleDateFormat][java.text.SimpleDateFormat]
+* [GitHub--tail flume][GitHub--tail flume]
 
 
 
@@ -207,4 +234,8 @@ __特别说明__：
 
 
 [Apache Flume NG--User Guide]:			http://flume.apache.org/FlumeUserGuide.html
+[java.text.SimpleDateFormat]:			http://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html
+[GitHub--tail flume]:					https://github.com/search?utf8=%E2%9C%93&q=tail+flume&type=Repositories&ref=searchresults
+
+
 
