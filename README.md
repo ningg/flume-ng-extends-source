@@ -148,7 +148,7 @@ __特别说明__：
 **疑问**：上述，selector和interceptor的作用？
 
 * selector：通过event对应的Header，来将event发送到对应的channel中；
-* interceptor：？
+* interceptor：在event进入channel之前，修改或者删除event，多个interceptor构成一条链；
 
 ####SpoolDirectoryTailFileSource的配置样板文件
 
@@ -193,7 +193,7 @@ __特别说明__：
 * 直接使用Spooling Directory Source方式，默认已经放入spool directory的文件，不能再进行修改，否则异常；
 	* 解决思路：去掉限制即可。
 * 读取日志文件内容的线程，抛出异常之后，停止工作，仅当重启整个Flume Agent时，才会继续收集文件；当前线程无法自动重启；几种情况：
-	* 正在监听的文件，被强制删除，线程终止；即，实现`tail -f`功能，但没有实现`tail -F`功能（本质`--follow=name --retry`）
+	* 正在监听的文件，被强制删除，线程终止；即，实现`tail -f`功能，但没有实现`tail -F`功能（本质`tail --follow=name --retry`）
 	* 当历史日志文件不删除时，如果有历史日志的重名文件添加到spoolDir中，则抛出异常，线程终止；
 	* 思考：能否借鉴Exec Source中的restart机制，实现当进程存活时，能够自动重启线程；
 	* 有人定制了Flume-OG中的tail source，使其能够适应Flume-NG环境，github上有代码，可以借鉴。

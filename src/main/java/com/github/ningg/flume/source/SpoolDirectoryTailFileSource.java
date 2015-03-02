@@ -185,6 +185,7 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 	        while (!Thread.interrupted()) {
 	          List<Event> events = reader.readEvents(batchSize);
 	          if (events.isEmpty()) {
+	        	reader.commit();	// Avoid IllegalStateException while tailing file.
 	            break;
 	          }
 	          sourceCounter.addToEventReceivedCount(events.size());
