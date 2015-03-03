@@ -47,7 +47,9 @@ Extends source of Flume NG for tailing files and folders.
 |Flume NG|`1.5.2`|
 
 
-###编译工程的预装环境
+###预装环境
+
+编译工程前，需要预装环境：
 
 * JDK 1.6+
 * [Apache Maven 3][Apache Maven 3]
@@ -56,7 +58,7 @@ Extends source of Flume NG for tailing files and folders.
 
 ###编译
 
-本工程使用[Apache Maven 3][Apache Maven 3]来编译，可以从[这里][http://maven.apache.org/download.cgi]下载不同OS环境下的Maven安装文件。
+本工程使用[Apache Maven 3][Apache Maven 3]来编译，可以从[这里](http://maven.apache.org/download.cgi)下载不同OS环境下的Maven安装文件。
 
 执行命令：`mvn clean package`，默认在`${project_root}/target/`目录下，编译生成`flume-ng-extends-source-x.x.x.jar`。
 
@@ -65,8 +67,8 @@ Extends source of Flume NG for tailing files and folders.
 
 ###安装插件
 
-1. 按照上一部分[编译][#编译]获取工程的jar包：`flume-ng-extends-source-x.x.x.jar`；
-1. 两种方式，可以在Flume下安装插件：
+1. 按照上一部分[编译](#编译)获取工程的jar包：`flume-ng-extends-source-x.x.x.jar`；
+1. 两种方法，可以在Flume下安装插件：
 
 **方法一**：标准插件安装 *(Recommended Approach)*，具体步骤：
 
@@ -83,11 +85,11 @@ Extends source of Flume NG for tailing files and folders.
 					|-- flume-ng-extends-source-x.x.x.jar
 				|-- libext
 
-Flume插件安装的更多细节，参考[Flume User Guide][https://flume.apache.org/FlumeUserGuide.html#the-plugins-d-directory]
+Flume插件安装的更多细节，参考[Flume User Guide](https://flume.apache.org/FlumeUserGuide.html#the-plugins-d-directory)
 
 				
 **疑问**：maven打包时，如何将当前jar包以及其依赖包都导出？
-参考[thilinamb flume kafka sink][https://github.com/thilinamb/flume-ng-kafka-sink]
+参考[thilinamb flume kafka sink](https://github.com/thilinamb/flume-ng-kafka-sink)
 
 
 **方法二**：快速插件安装 *(Quick and Dirty Approach)*，具体步骤：
@@ -125,7 +127,7 @@ Flume插件安装的更多细节，参考[Flume User Guide][https://flume.apache
 |Property Name|	Default|	Description|
 |------|------|------|
 |**channels**|	–	 |  |
-|**type**|	–	|The component type name, needs to be `com.github.ningg.flume.source.SpoolDirectoryTailFileSource`.|
+|**type**|	–	|The component type name, needs to be `com.github.ningg.flume.source``.SpoolDirectoryTailFileSource`.|
 |**spoolDir**|	–	|The directory from which to read files from.|
 |fileSuffix|	`.COMPLETED`|	Suffix to append to completely ingested files|
 |deletePolicy|	`never`|	When to delete completed files: `never` or `immediate`|
@@ -172,12 +174,12 @@ Flume插件安装的更多细节，参考[Flume User Guide][https://flume.apache
 	* 解决思路：技术上解决不是问题，关键是策略，当文件名称相同时，如何应对；
 
 
-##交流&反馈
+##交流 & 反馈
 
 如果你对这一工程有任何建议，几个途径联系我：
 
-* 在工程下，提出[Isusses]	*（推荐）*
-* [在bolg发表评论][http://ningg.github.io/project-flume-ng-extends-source/]
+* 在工程下，提出[Isusses](/issues)	*（推荐）*
+* [在bolg发表评论](http://ningg.github.io/project-flume-ng-extends-source/)
 
 
 ##附录
