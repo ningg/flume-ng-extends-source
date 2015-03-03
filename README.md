@@ -2,48 +2,36 @@
 
 Extends source of Flume NG for tailing files and folders.
 
-* SpoolDirectoryTailFile：spooling directory, collect all the historical files and tail the target file;
+* SpoolDirectoryTailFileSource：spooling directory, collect all the historical files and tail the target file;
 * TailFile：TODO
 * TailDirectory：TODO
 
 
 
-TODO：
-
-* 整理英文版本说明文档；
-* 添加测试部分；
-* 学习他人的README；
-	* kafka source；
-	* webmagic；
-
-
 ##场景
 
-实时收集应用的运行日志，其日志特点：
+收集日志，具体场景：
 
-* 应用运行时，每天都在指定目录下，产生一个新的日志文件，日志文件名称：`HH_2015-02-25.txt`，文件名中包含日期信息；
-* 应用运行时，向当日日志文件，实时追加内容，例如，在2015年02月25日，应用的运行信息，会实时追加到`HH_2015-02-25.txt`文件中；
+* 应用运行时，每天都在指定目录下，产生一个新的日志文件，日志文件名称：`HH_2015-02-25.txt`，注：文件名中包含日期信息；
+* 应用运行时，向当日日志文件追加内容，例如，在2015年02月25日，应用的运行信息，会实时追加到`HH_2015-02-25.txt`文件中；
 
 
 实际说个例子：
 
 * 应用生成的日志文件，都在目录：`E:/app/log`下；
-* 2015年02月24日，应用在目录`E:/app/log`下，生成文件`HH_2015-02-24.txt`，并将运行日志，实时追加到此文件中；
-* 2015年02月25日，应用在目录`E:/app/log`下，生成新的文件`HH_2015-02-25.txt`，并将当日的运行日志，实时追加到此文件中；
+* 2015年02月24日，应用在目录`E:/app/log`下，生成文件`HH_2015-02-24.txt`，并且，运行信息会实时追加到此文件中；
+* 2015年02月25日，应用在目录`E:/app/log`下，生成新的文件`HH_2015-02-25.txt`，并且，将当日的运行信息实时追加到此文件中；
+
+**特别说明**：此场景的解决方案就是下文提到的`SpoolDirectoryTailFileSource`。
 
 
 ##要求
 
 在上述场景下，要求，实时收集应用的运行日志，整体性能上几点：
 
-* 实时：日志一产生，就以秒级的延时，收集发送走；
-* 可靠：一旦实时日志收集程序异常终止，保证重启之后，日志数据，不丢失，并且不重复发送；
-* 历史日志文件处理策略：已经收集过的历史日志文件，应被立即删除，或者被移送到指定目录；
-
-具体细节功能点上，要求几点：
-
-* 中文编码：原始日志文件GBK编码，要避免乱码；
-* 多行内容抽取：默认按行读取日志文件，而，实际场景中，多行日志文件才对应一个逻辑单元，需要将多行日志文件，抽取为单行；
+* 实时：日志产生后，应以秒级的延时，收集发送走；
+* 可靠：一旦日志收集程序终止，保证重启之后，日志数据不丢失，并且不重复发送；
+* 历史日志文件处理策略：已经收集过的历史日志文件，应立即删除，或者被移送到指定目录；
 
 
 
@@ -56,7 +44,143 @@ TODO：
 
 |组件|版本|
 |----|----|
-|Flume NG|1.5.2|
+|Flume NG|`1.5.2`|
+
+
+###编译工程的预装环境
+
+* JDK 1.6+
+* [Apache Maven 3][Apache Maven 3]
+
+
+
+###编译
+
+本工程使用[Apache Maven 3][Apache Maven 3]来编译，可以从[这里][http://maven.apache.org/download.cgi]下载不同OS环境下的Maven安装文件。
+
+执行命令：`mvn clean package`，默认在`${project_root}/target/`目录下，编译生成`flume-ng-extends-source-x.x.x.jar`。
+
+
+
+
+###安装插件
+
+1. 按照上一部分[编译][#编译]获取工程的jar包：`flume-ng-extends-source-x.x.x.jar`；
+1. 两种方式，可以在Flume下安装插件：
+
+**方法一**：标准插件安装 *(Recommended Approach)*，具体步骤：
+
+* 在`${FLUME_HOME}`找到目录`plugins.d`，如果没有找到这一目录，则创建目录`${FLUME_HOME}/plugins.d`；
+* 在`${FLUME_HOME}/plugins.d`目录下，创建目录`flume-ng-extends-source`，并在其下创建`lib`和`libext`两个子目录；
+* 将`flume-ng-extends-source-x.x.x.jar`复制到`plugins.d/flume-ng-extends-source/lib`目录中；
+
+至此，安装插件后，目录结构如下：
+
+	${FLUME_HOME}
+	 |-- plugins.d
+			|-- flume-ng-extends-source/lib
+				|-- lib
+					|-- flume-ng-extends-source-x.x.x.jar
+				|-- libext
+
+Flume插件安装的更多细节，参考[Flume User Guide][https://flume.apache.org/FlumeUserGuide.html#the-plugins-d-directory]
+
+				
+**疑问**：maven打包时，如何将当前jar包以及其依赖包都导出？
+参考[thilinamb flume kafka sink][https://github.com/thilinamb/flume-ng-kafka-sink]
+
+
+**方法二**：快速插件安装 *(Quick and Dirty Approach)*，具体步骤：
+
+* 将`flume-ng-extends-source-x.x.x.jar`复制到`${FLUME_HOME}/lib`目录中；
+
+
+
+###配置文件
+
+在flume的配置文件`flume-conf.properties`中，配置`agent`下`SpoolDirectoryTailFileSource` source，参考代码如下：
+
+	# Spooling dir and tail file Source 
+	agent.sources.spoolDirTailFile.type = com.github.ningg.flume.source.SpoolDirectoryTailFileSource
+	# on WIN plantform spoolDir should be format like: E:/program files/spoolDir
+	# Note: the value of spoolDir MUST NOT be surrounded by quotation marks.
+	agent.sources.spoolDirTailFile.spoolDir = /home/storm/goodjob/spoolDir
+	agent.sources.spoolDirTailFile.fileSuffix = .COMPLETED
+	agent.sources.spoolDirTailFile.deletePolicy = never 
+	agent.sources.spoolDirTailFile.ignorePattern = ^$
+	agent.sources.spoolDirTailFile.targetPattern = .*(\\d){4}-(\\d){2}-(\\d){2}.*
+	agent.sources.spoolDirTailFile.targetFilename = yyyy-MM-dd
+	agent.sources.spoolDirTailFile.trackerDir = .flumespooltail
+	agent.sources.spoolDirTailFile.consumeOrder = oldest
+	agent.sources.spoolDirTailFile.batchSize = 100
+	agent.sources.spoolDirTailFile.inputCharset = UTF-8
+	agent.sources.spoolDirTailFile.decodeErrorPolicy = REPLACE
+	agent.sources.spoolDirTailFile.deserializer = LINE
+
+
+###配置参数详解
+
+详细配置参数如下表（Required properties are in **bold**.）：
+
+|Property Name|	Default|	Description|
+|------|------|------|
+|**channels**|	–	 |  |
+|**type**|	–	|The component type name, needs to be `com.github.ningg.flume.source.SpoolDirectoryTailFileSource`.|
+|**spoolDir**|	–	|The directory from which to read files from.|
+|fileSuffix|	`.COMPLETED`|	Suffix to append to completely ingested files|
+|deletePolicy|	`never`|	When to delete completed files: `never` or `immediate`|
+|fileHeader|	`false`|	Whether to add a header storing the absolute path filename.|
+|fileHeaderKey|	`file`|	Header key to use when appending absolute path filename to event header.|
+|basenameHeader|	`false`|	Whether to add a header storing the basename of the file.|
+|basenameHeaderKey|	`basename`|	Header Key to use when appending basename of file to event header.|
+|ignorePattern|	`^$`	|Regular expression specifying which files to ignore (skip)|
+|**targetPattern**|	`.*(\\d){4}-(\\d){2}-(\\d){2}.*`	|Regular expression specifying which files to collect|
+|**targetFilename**|	`yyyy-MM-dd`	|The Target File's DateFormat, which refers to [java.text.SimpleDateFormat][java.text.SimpleDateFormat]. Infact, there is strong relationship between Property: **targetFilename** and Property: **targetPattern** |
+|trackerDir|	`.flumespooltail`|	Directory to store metadata related to processing of files. If this path is not an absolute path, then it is interpreted as relative to the spoolDir.|
+|consumeOrder|	`oldest`	|In which order files in the spooling directory will be consumed `oldest`, `youngest` and `random`. In case of `oldest` and `youngest`, the last modified time of the files will be used to compare the files. In case of a tie, the file with smallest laxicographical order will be consumed first. In case of `random` any file will be picked randomly. When using `oldest` and `youngest` the whole directory will be scanned to pick the oldest/youngest file, which might be slow if there are a large number of files, while using random may cause old files to be consumed very late if new files keep coming in the spooling directory.|
+|maxBackoff	|4000	|The maximum time (in millis) to wait between consecutive attempts to write to the channel(s) if the channel is full. The source will start at a low backoff and increase it exponentially each time the channel throws a ChannelException, upto the value specified by this parameter.|
+|batchSize	|100|	Granularity at which to batch transfer to the channel|
+|inputCharset|	`UTF-8`|	Character set used by deserializers that treat the input file as text.|
+|decodeErrorPolicy|	`FAIL`|	What to do when we see a non-decodable character in the input file. `FAIL`: Throw an exception and fail to parse the file. `REPLACE`: Replace the unparseable character with the “replacement character” char, typically Unicode `U+FFFD`. `IGNORE`: Drop the unparseable character sequence.|
+|deserializer|	`LINE`|	Specify the deserializer used to parse the file into events. Defaults to parsing each line as an event. The class specified must implement `EventDeserializer.Builder`.|
+|deserializer.*	| 	|Varies per event deserializer.*(设置每个deseralizer的实现类，对应的配置参数)*|
+|bufferMaxLines|	–	|(Obselete) This option is now ignored.|
+|bufferMaxLineLength|	5000|	(Deprecated) Maximum length of a line in the commit buffer. Use `deserializer.maxLineLength` instead.|
+|selector.type|	`replicating`|	`replicating` or `multiplexing`|
+|selector.*	| 	|Depends on the `selector.type` value|
+|interceptors|	–	|Space-separated list of interceptors|
+|interceptors.*	|  |  |
+
+
+**补充**：上述，selector和interceptor的作用？
+
+* selector：通过event对应的Header，来将event发送到对应的channel中；
+* interceptor：在event进入channel之前，修改或者删除event，多个interceptor构成一条链；
+	
+	
+###约定条件
+
+使用上述`SpoolDirectoryTailFileSource`的几个约束：
+
+* 按日期，每日生成一个新日志文件；
+* 只以追加方式写入当日的日志文件；
+* 在source 监听当日的日志文件时，其他进程不会删除当日的日志文件；
+	* 思考：如果这一情况发生，怎么办？
+	* 解决思路：能否自动重启Flume agent进程，或者只启动收集数据的线程？
+* 不会在同一目录下，生成名称完全相同的文件；*（当`deletePolicy`=`immediate`时，无此限制）*
+	* 思考：如果这一情况发生，怎么办？
+	* 解决思路：技术上解决不是问题，关键是策略，当文件名称相同时，如何应对；
+
+
+##交流&反馈
+
+如果你对这一工程有任何建议，几个途径联系我：
+
+* 在工程下，提出[Isusses]	*（推荐）*
+* [在bolg发表评论][http://ningg.github.io/project-flume-ng-extends-source/]
+
+
+##附录
 
 
 ###方案灵感来源
@@ -84,135 +208,15 @@ __特别说明__：
 	* 当日定论：次日不再编辑前一日的日志；
 
 
-
-
-
 ###可靠性分析
 
-3种情况下，日志实时采集系统的可靠性，保证不丢失数据、不重复发送数据，几种情况：
+下述3种情况下，`SpoolDirectoryTailFileSource`都有很高的可靠性，保证不丢失数据、不重复发送数据，几种情况*（启动时间、重启时间，两个维度）*：
 
-* 日志一直在记录，隔日才启动实时收集程序；
+* 日志一直在追加更新，隔日才启动实时收集程序；
 * 实时收集程序，当日终止，当日重启；
 * 实时收集程序，当日终止，次日重启；
 
-上面都是借助meta文件来实现的；
-
-
-
-###使用方法
-
-如何使用SpoolDirctoryTailFileSource，具体：
-
-* 打包工程，并将其配置为Flume的插件：
-	* 执行命令`mvn clean package`，将工程导出为jar包：`flume-ng-extends-source-0.8.0.jar`；
-	* 在`FLUME_HOME`下，创建目录：`$FLUME_HOME/plugins.d/spool-dir-tail-file-source/lib`；
-	* 将`flume-ng-extends-source-0.8.0.jar`放到`$FLUME_HOME/plugins.d/spool-dir-tail-file-source/lib`目录下；
-	* __补充说明__：flume下安装插件的细节，参考[flume官网][Apache Flume NG--User Guide]
-* 在配置文件中配置SpoolDirectoryTailFileSource，使其生效：
-	* 下文将给出一个配置样板，同时会详细说明每个配置参数；
-	
-####SpoolDirectoryTailFileSource的配置参数
-
-详细配置参数如下表（Required properties are in **bold**.）：
-
-|Property Name|	Default|	Description|
-|------|------|------|
-|**channels**|	–	 |  |
-|**type**|	–	|The component type name, needs to be `spooldir`.|
-|**spoolDir**|	–	|The directory from which to read files from.|
-|fileSuffix|	`.COMPLETED`|	Suffix to append to completely ingested files|
-|deletePolicy|	`never`|	When to delete completed files: `never` or `immediate`|
-|fileHeader|	`false`|	Whether to add a header storing the absolute path filename.|
-|fileHeaderKey|	`file`|	Header key to use when appending absolute path filename to event header.|
-|basenameHeader|	`false`|	Whether to add a header storing the basename of the file.|
-|basenameHeaderKey|	`basename`|	Header Key to use when appending basename of file to event header.|
-|ignorePattern|	`^$`	|Regular expression specifying which files to ignore (skip)|
-|**targetPattern**|	`.*(\\d){4}-(\\d){2}-(\\d){2}.*`	|Regular expression specifying which files to collect|
-|**targetFilename**|	`yyyy-MM-dd`	|The Target File's DateFormat, which refers to [java.text.SimpleDateFormat][java.text.SimpleDateFormat]. Infact, there is strong relationship between Property: **targetFilename** and Property: **targetPattern** |
-|trackerDir|	`.flumespooltail`|	Directory to store metadata related to processing of files. If this path is not an absolute path, then it is interpreted as relative to the spoolDir.|
-|consumeOrder|	`oldest`	|In which order files in the spooling directory will be consumed `oldest`, `youngest` and `random`. In case of `oldest` and `youngest`, the last modified time of the files will be used to compare the files. In case of a tie, the file with smallest laxicographical order will be consumed first. In case of `random` any file will be picked randomly. When using `oldest` and `youngest` the whole directory will be scanned to pick the oldest/youngest file, which might be slow if there are a large number of files, while using random may cause old files to be consumed very late if new files keep coming in the spooling directory.|
-|maxBackoff	|4000	|The maximum time (in millis) to wait between consecutive attempts to write to the channel(s) if the channel is full. The source will start at a low backoff and increase it exponentially each time the channel throws a ChannelException, upto the value specified by this parameter.|
-|batchSize	|100|	Granularity at which to batch transfer to the channel|
-|inputCharset|	`UTF-8`|	Character set used by deserializers that treat the input file as text.|
-|decodeErrorPolicy|	`FAIL`|	What to do when we see a non-decodable character in the input file. `FAIL`: Throw an exception and fail to parse the file. `REPLACE`: Replace the unparseable character with the “replacement character” char, typically Unicode `U+FFFD`. `IGNORE`: Drop the unparseable character sequence.|
-|deserializer|	`LINE`|	Specify the deserializer used to parse the file into events. Defaults to parsing each line as an event. The class specified must implement `EventDeserializer.Builder`.|
-|deserializer.*	| 	|Varies per event deserializer.*(设置每个deseralizer的实现类，对应的配置参数)*|
-|bufferMaxLines|	–	|(Obselete) This option is now ignored.|
-|bufferMaxLineLength|	5000|	(Deprecated) Maximum length of a line in the commit buffer. Use `deserializer.maxLineLength` instead.|
-|selector.type|	`replicating`|	`replicating` or `multiplexing`|
-|selector.*	| 	|Depends on the `selector.type` value|
-|interceptors|	–	|Space-separated list of interceptors|
-|interceptors.*	|  |  |
-
-
-**疑问**：上述，selector和interceptor的作用？
-
-* selector：通过event对应的Header，来将event发送到对应的channel中；
-* interceptor：在event进入channel之前，修改或者删除event，多个interceptor构成一条链；
-
-####SpoolDirectoryTailFileSource的配置样板文件
-
-在flume的配置文件`flume-conf.properties`中，配置`agent`下`spoolDirTailFile` source：
-
-	# Spooling dir and tail file Source 
-	agent.sources.spoolDirTailFile.type = com.github.ningg.flume.source.SpoolDirectoryTailFileSource
-	agent.sources.spoolDirTailFile.spoolDir = /home/storm/goodjob/spoolDir
-	agent.sources.spoolDirTailFile.fileSuffix = .COMPLETED
-	agent.sources.spoolDirTailFile.deletePolicy = never 
-	agent.sources.spoolDirTailFile.ignorePattern = ^$
-	agent.sources.spoolDirTailFile.targetPattern = .*(\\d){4}-(\\d){2}-(\\d){2}.*
-	agent.sources.spoolDirTailFile.targetFilename = yyyy-MM-dd
-	agent.sources.spoolDirTailFile.trackerDir = .flumespooltail
-	agent.sources.spoolDirTailFile.consumeOrder = oldest
-	agent.sources.spoolDirTailFile.batchSize = 100
-	agent.sources.spoolDirTailFile.inputCharset = UTF-8
-	agent.sources.spoolDirTailFile.decodeErrorPolicy = REPLACE
-	agent.sources.spoolDirTailFile.deserializer = LINE
-
-
-####约定条件
-
-几个约束：
-
-* 按日期，每日生成一个新日志文件；
-* 只以追加方式写入当日的日志文件；
-* 不会删除当日的日志文件；
-	* 重启Flume agent进程，不会导致数据丢失、数据重发；
-	* 解决思路：能否自动重启Flume agent进程，或者只启动收集数据的线程？还没有思路。
-* 不会在同一目录下，生成名称完全相同的文件；*（当`deletePolicy`=`immediate`时，无此限制）*
-	* 重启Flume agent进程，不会导致数据丢失、数据重发；
-	* 解决思路：技术上解决不是问题，关键是策略，当文件名称相同时，如何应对；
-
-
-
-###潜在问题
-
-几点：
-
-* win server 2003下，指定目录的操作权限问题，即，启动的进程是否有目录的写权限；
-* 直接使用Spooling Directory Source方式，默认已经放入spool directory的文件，不能再进行修改，否则异常；
-	* 解决思路：去掉限制即可。
-* 读取日志文件内容的线程，抛出异常之后，停止工作，仅当重启整个Flume Agent时，才会继续收集文件；当前线程无法自动重启；几种情况：
-	* 正在监听的文件，被强制删除，线程终止；即，实现`tail -f`功能，但没有实现`tail -F`功能（本质`tail --follow=name --retry`）
-	* 当历史日志文件不删除时，如果有历史日志的重名文件添加到spoolDir中，则抛出异常，线程终止；
-	* 思考：能否借鉴Exec Source中的restart机制，实现当进程存活时，能够自动重启线程；
-	* 有人定制了Flume-OG中的tail source，使其能够适应Flume-NG环境，github上有代码，可以借鉴。
-
-
-
-##其他对比方案
-
-几种方案：
-
-* 现有tail source
-* 基于spooling directory source机制定制的tail source
-
-几个方面：
-
-* 可靠性：数据，不丢失、不重发；
-* 处理速率：相同硬件下，更节约计算机资源；
-
-
+上面都是借助meta文件来实现的。
 
 
 
@@ -233,9 +237,16 @@ __特别说明__：
 
 
 
+
+
+
+
+
+
+
 [Apache Flume NG--User Guide]:			http://flume.apache.org/FlumeUserGuide.html
 [java.text.SimpleDateFormat]:			http://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html
 [GitHub--tail flume]:					https://github.com/search?utf8=%E2%9C%93&q=tail+flume&type=Repositories&ref=searchresults
-
+[Apache Maven 3]:						http://maven.apache.org/
 
 
