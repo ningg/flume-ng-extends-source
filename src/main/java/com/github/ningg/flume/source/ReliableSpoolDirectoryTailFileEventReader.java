@@ -234,7 +234,7 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	         * 1. old File: delete or rename ;
 	         * 2. current fresh File: monitor it; 
 	         */
-	       if(!isTargetFile(currentFile)){
+	       if(!isTargetFile(currentFile)){		//	Not target file.
 	    	logger.info("File:{} is no longer a TARGET File, which will no longer be monitored.", currentFile.get().getFile().getName());
 	     	retireCurrentFile();
 	     	currentFile = getNextFile();
