@@ -127,7 +127,7 @@ Flume插件安装的更多细节，参考[Flume User Guide](https://flume.apache
 |Property Name|	Default|	Description|
 |------|------|------|
 |**channels**|	–	 |  |
-|**type**|	–	|The component type name, needs to be `com.github.ningg.flume.source``.SpoolDirectoryTailFileSource`.|
+|**type**|	–	|The component type name, needs to be `com.github.ningg.flume.source.SpoolDirectoryTailFileSource`.|
 |**spoolDir**|	–	|The directory from which to read files from.|
 |fileSuffix|	`.COMPLETED`|	Suffix to append to completely ingested files|
 |deletePolicy|	`never`|	When to delete completed files: `never` or `immediate`|
@@ -178,7 +178,7 @@ Flume插件安装的更多细节，参考[Flume User Guide](https://flume.apache
 
 如果你对这一工程有任何建议，几个途径联系我：
 
-* 在工程下，提出[Isusses](/issues)	*（推荐）*
+* 在工程下，提出[Isusses](https://github.com/ningg/flume-ng-extends-source/issues)	*（推荐）*
 * [在bolg发表评论](http://ningg.github.io/project-flume-ng-extends-source/)
 
 
