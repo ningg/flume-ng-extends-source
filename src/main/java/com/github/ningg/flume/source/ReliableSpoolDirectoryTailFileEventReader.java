@@ -234,7 +234,8 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	         * 1. old File: delete or rename ;
 	         * 2. current fresh File: monitor it; 
 	         */
-	       if(!isTargetFile(currentFile)){		//	Not target file.
+	       if(!isTargetFile(currentFile) 		//	Only CurrentFile is no longer the target, at the meanwhile, next file exists.
+	    		   && (isExistNextFile()) ){	//	Then deal with the history file(ever target file)
 	    	logger.info("File:{} is no longer a TARGET File, which will no longer be monitored.", currentFile.get().getFile().getName());
 	     	retireCurrentFile();
 	     	currentFile = getNextFile();
@@ -265,7 +266,41 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	    return events;
 	}
 
-	 /**
+	/**
+	 * refer to {@link #getNextFile()}
+	 * @return
+	 */
+	 private boolean isExistNextFile() {
+		 /* Filter to exclude finished or hidden files */
+		FileFilter filter = new FileFilter() {
+			@Override
+			public boolean accept(File candidate) {
+				String fileName = candidate.getName();
+				if( (candidate.isDirectory()) || 
+					(fileName.endsWith(completedSuffix)) ||
+					(fileName.startsWith(".")) ||
+					(ignorePattern.matcher(fileName).matches()) ){
+					return false;
+				}
+				if( targetPattern.matcher(fileName).matches() ){
+					return true; 
+				}
+				return false;
+			}
+		};
+		List<File> candidateFiles = Arrays.asList(spoolDirectory.listFiles(filter));
+		if (candidateFiles.isEmpty()){ 	// No matching file in spooling directory.
+			return false;
+		}
+		
+		if (candidateFiles.size() >= 2) {	// Only when two file exist. (Since current file is there.)
+			return true;
+		}
+		
+		return false;
+	}
+
+	/**
 	   * Test if currentFile2 is the targetFile.
 	   * @param currentFile2
 	   * @return
