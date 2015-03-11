@@ -2,11 +2,37 @@
 
 Extends source of Flume NG for tailing files and folders.
 
-* SpoolDirectoryTailFileSource：spooling directory, collect all the historical files and tail the target file;
-* TailFile：TODO
-* TailDirectory：TODO
+* `SpoolDirectoryTailFileSource`：spooling directory, collect all the historical files and tail the target file;
+* `TailFile`：TODO
+* `TailDirectory`：TODO
+* `KafkaSource`：consume events from Kafka(Kafka_2.9.2_0.8.2.0)
 
 
+##KafkaSource
+
+来源：Github上apache flume中kafka source
+
+思考几点：
+
+* Kafka Source中有没有事务保证（transaction）
+	* Kafka Source中offset如何重置？（可参考storm-kafka）
+	* Flume中channel可以rollback；
+
+
+
+##参考来源
+
+
+* [Flume Deveploger Guide][Flume Deveploger Guide]
+
+
+
+
+[Flume Deveploger Guide]:				http://flume.apache.org/FlumeDeveloperGuide.html
+
+
+
+------------------------
 
 ##场景
 
@@ -228,7 +254,7 @@ __特别说明__：
 * [Apache Flume NG--User Guide][Apache Flume NG--User Guide]
 * [java.text.SimpleDateFormat][java.text.SimpleDateFormat]
 * [GitHub--tail flume][GitHub--tail flume]
-
+* [Apache Flume NG(source)][Apache Flume NG(source)]
 
 
 
@@ -250,5 +276,5 @@ __特别说明__：
 [java.text.SimpleDateFormat]:			http://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html
 [GitHub--tail flume]:					https://github.com/search?utf8=%E2%9C%93&q=tail+flume&type=Repositories&ref=searchresults
 [Apache Maven 3]:						http://maven.apache.org/
-
+[Apache Flume NG(source)]:				https://github.com/apache/flume
 

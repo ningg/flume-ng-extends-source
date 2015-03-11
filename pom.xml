@@ -15,7 +15,18 @@
   		<artifactId>flume-ng-core</artifactId>
   		<version>1.5.2</version>
   	</dependency>
+  	<dependency>
+  		<groupId>org.apache.kafka</groupId>
+  		<artifactId>kafka_2.9.2</artifactId>
+  		<version>0.8.2.0</version>
+  	</dependency>
+  	<dependency>
+      <groupId>org.apache.zookeeper</groupId>
+      <artifactId>zookeeper</artifactId>
+      <version>3.4.6</version>
+    </dependency>
   </dependencies>
+  
   
   
   
