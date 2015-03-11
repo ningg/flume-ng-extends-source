@@ -8,32 +8,28 @@ Extends source of Flume NG for tailing files and folders.
 * `KafkaSource`：consume events from Kafka(Kafka_2.9.2_0.8.2.0)
 
 
-##KafkaSource
-
-来源：Github上apache flume中kafka source
-
-思考几点：
-
-* Kafka Source中有没有事务保证（transaction）
-	* Kafka Source中offset如何重置？（可参考storm-kafka）
-	* Flume中channel可以rollback；
-
-
-
-##参考来源
-
-
-* [Flume Deveploger Guide][Flume Deveploger Guide]
-
-
-
-
-[Flume Deveploger Guide]:				http://flume.apache.org/FlumeDeveloperGuide.html
-
 
 
 ------------------------
 
+#SpoolDirectoryTailFileSource
+
+* [场景][#场景]
+* [要求][#要求]
+* [解决方案][#解决方案]
+	* [组件版本][#组件版本]
+	* [预装环境][#预装环境]
+	* [编译][#编译]
+	* [安装插件][#安装插件]
+	* [配置文件][#配置文件]
+	* [配置参数详解][#配置参数详解]
+	* [约定条件][#约定条件]
+* [交流 & 反馈][#交流 & 反馈]
+* [附录][#附录]
+	* [方案灵感来源][#方案灵感来源]
+	* [可靠性分析][#可靠性分析]
+* [参考来源][#参考来源]
+	
 ##场景
 
 收集日志，具体场景：
@@ -257,6 +253,30 @@ __特别说明__：
 * [Apache Flume NG(source)][Apache Flume NG(source)]
 
 
+-----------------------------
+
+
+#KafkaSource
+
+来源：Github上apache flume中kafka source
+
+思考几点：
+
+* Kafka Source中有没有事务保证（transaction）
+	* Kafka Source中offset如何重置？（可参考storm-kafka）
+	* Flume中channel可以rollback；
+
+
+
+##参考来源
+
+
+* [Flume Deveploger Guide][Flume Deveploger Guide]
+
+
+
+
+[Flume Deveploger Guide]:				http://flume.apache.org/FlumeDeveloperGuide.html
 
 
 
