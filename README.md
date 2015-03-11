@@ -2,10 +2,10 @@
 
 Extends source of Flume NG for tailing files and folders.
 
-* [SpoolDirectoryTailFileSource](#SpoolDirectoryTailFileSource)：spooling directory, collect all the historical files and tail the target file;
+* [SpoolDirectoryTailFileSource](#spooldirectorytailfilesource)：spooling directory, collect all the historical files and tail the target file;
 * [TailFile]：TODO
 * [TailDirectory]：TODO
-* [KafkaSource](#KafkaSource)：consume events from Kafka(Kafka_2.9.2_0.8.2.0)
+* [KafkaSource](#kafkasource)：consume events from Kafka(Kafka_2.9.2_0.8.2.0)
 
 
 
