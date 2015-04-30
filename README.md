@@ -24,7 +24,7 @@ Extends source of Flume NG for tailing files and folders.
 	* [配置文件](#配置文件)
 	* [配置参数详解](#配置参数详解)
 	* [约定条件](#约定条件)
-* [交流 & 反馈](#交流 & 反馈)
+* [交流反馈](#交流反馈)
 * [附录](#附录)
 	* [方案灵感来源](#方案灵感来源)
 	* [可靠性分析](#可靠性分析)
@@ -196,7 +196,7 @@ Flume插件安装的更多细节，参考[Flume User Guide](https://flume.apache
 	* 解决思路：技术上解决不是问题，关键是策略，当文件名称相同时，如何应对；
 
 
-##交流 & 反馈
+##交流反馈
 
 如果你对这一工程有任何建议，几个途径联系我：
 
@@ -258,6 +258,13 @@ __特别说明__：
 
 #KafkaSource
 
+（doing...）正在整理，具体包含：
+
+* KafkaSource中事务保证；
+* 如何将KafkaSource依赖的jar包，整理到zip中？
+
+
+
 来源：Github上apache flume中kafka source
 
 思考几点：
@@ -265,6 +272,21 @@ __特别说明__：
 * Kafka Source中有没有事务保证（transaction）
 	* Kafka Source中offset如何重置？（可参考storm-kafka）
 	* Flume中channel可以rollback；
+
+	
+两类jar包：
+
+* lib中jar包
+	* `flume-ng-extends-source-x.x.x.jar`
+* libext中jar包
+	* `kafka_2.9.2-0.8.2.0.jar`
+	* `kafka-clients-0.8.2.0.jar`
+	* `metrics-core-2.2.0.jar`
+	* `scala-library-2.9.2.jar`
+	* `zkclient-0.3.jar`
+
+
+注：关于KafkaSource用法的细节，参考[文章][Flume实现将Kafka中数据传入ElasticSearch中]。
 
 
 
@@ -276,25 +298,27 @@ __特别说明__：
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 [Flume Deveploger Guide]:				http://flume.apache.org/FlumeDeveloperGuide.html
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 [Apache Flume NG--User Guide]:			http://flume.apache.org/FlumeUserGuide.html
 [java.text.SimpleDateFormat]:			http://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html
 [GitHub--tail flume]:					https://github.com/search?utf8=%E2%9C%93&q=tail+flume&type=Repositories&ref=searchresults
 [Apache Maven 3]:						http://maven.apache.org/
 [Apache Flume NG(source)]:				https://github.com/apache/flume
+
+
+
+[Flume实现将Kafka中数据传入ElasticSearch中]:			/flume-kafka-source-elasticsearch-sink
+
+
 
