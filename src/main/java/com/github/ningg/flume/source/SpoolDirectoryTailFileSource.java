@@ -103,6 +103,7 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 	private boolean hitChannelException = false;
 	private int maxBackoff;
 	private ConsumeOrder consumeOrder;
+	private String completeFileName;
 	
 	@Override
 	public synchronized void start(){
@@ -129,6 +130,7 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 							.inputCharset(inputCharset)
 							.decodeErrorPolicy(decodeErrorPolicy)
 							.consumeOrder(consumeOrder)
+							.completeFlagFileName(completeFileName)
 							.build();
 		} catch (IOException e) {
 			throw new FlumeException("Error instantiating spooling and tail event parser", e);
@@ -191,7 +193,8 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 		deserializerContext = new Context(context.getSubProperties(DESERIALIZER + "."));
 		
 		consumeOrder = ConsumeOrder.valueOf(context.getString(CONSUME_ORDER, DEFAULT_CONSUME_ORDER.toString()).toUpperCase());
-		
+		completeFileName = getName()+"_cflag.txt";
+				
 		maxBackoff = context.getInteger(MAX_BACKOFF, DEFAULT_MAX_BACKOFF);
 		
 		if(sourceCounter == null){
@@ -216,7 +219,7 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 	        while (!Thread.interrupted()) {
 	          List<Event> events = reader.readEvents(batchSize);
 	          if (events.isEmpty()) {
-	        	  System.out.println("got an empty message List");
+	        	logger.info("got an empty message List");
 	        	reader.commit();	// Avoid IllegalStateException while tailing file.
 	            break;
 	        	/*TimeUnit.SECONDS.sleep(1);
@@ -229,7 +232,6 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 	          try {
 	            getChannelProcessor().processEventBatch(events);
 	            reader.commit();
-	            System.out.println("actual end time is "+System.currentTimeMillis());
 	          } catch (ChannelException ex) {
 	            logger.warn("The channel is full, and cannot write data now. The " +
 	              "source will try again after " + String.valueOf(backoffInterval) +
@@ -246,7 +248,9 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 	          backoffInterval = 250;
 	          sourceCounter.addToEventAcceptedCount(events.size());
 	          sourceCounter.incrementAppendBatchAcceptedCount();
+	          logger.debug("source count is {}", sourceCounter);
 	        }
+	        
 	        // logger.info("Spooling Directory Tail File Source runner has shutdown.");
 	      } catch (Throwable t) {
 	        logger.error("FATAL: " + SpoolDirectoryTailFileSource.this.toString() + ": " +
