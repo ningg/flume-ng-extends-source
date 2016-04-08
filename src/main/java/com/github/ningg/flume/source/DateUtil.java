@@ -1,5 +1,6 @@
 package com.github.ningg.flume.source;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.regex.Matcher;
@@ -16,6 +17,24 @@ public class DateUtil {
 	public static String convertDatetoString(Date date) {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 		return format.format(date);
+	}
+	
+	public static String convertDatetoString2(Date date) {
+		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		return format.format(date);
+	}
+	
+	public static String getYesterDay(String date) {
+		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+		Date dd;
+		try {
+			dd = format.parse(date);
+			long diff = dd.getTime() - 86400*1000;
+			return format.format(diff);
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 	
 	public static String getDateFormatFromFileName(String name) {

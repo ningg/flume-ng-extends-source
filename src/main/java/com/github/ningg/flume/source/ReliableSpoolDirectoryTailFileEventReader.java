@@ -79,6 +79,7 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	private final ConsumeOrder consumeOrder;
 	
 	private final String comFlagFileName;
+	private String currentFileDateFlag; //当前在读的文件的日期标记，只在第一次打开此文件时记录
 	
 	private Optional<FileInfo> currentFile = Optional.absent();
 	/** Always contains the last file from which lines have been read. **/
@@ -266,15 +267,20 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	    logger.info("size is " + events.size());
 	    if (events.size() > 0) {
 	    	logger.debug("first message is "+new String(events.get(0).getBody(),"UTF-8"));
+	    	String firmessage = new String(events.get(0).getBody(),"UTF-8");
+	    	String lastmessage = new String(events.get(events.size()-1).getBody(),"UTF-8");
+	    	if (lastmessage.equals(" ")) {
+	    		logger.debug("remove last message");
+	    		/*\r可能被作为line，构造了一个事件，要删除*/
+	    		events.remove(events.size()-1);
+	    		/*此处弥补因为\r被上次batch给取走了，导致本次第一条消息开头没空格*/
+	    		if (!firmessage.startsWith(" ")) {
+	    			events.get(0).setBody((" "+firmessage).getBytes());
+	    		}
+	    	}
 	    	logger.debug("last message is" +new String(events.get(events.size()-1).getBody(),"UTF-8"));
-	    	for (Event e : events) {
-	    		logger.debug("this batch message is {}" , new String(e.getBody(),"UTF-8"));	
-	    	}
-	    }else {
+	    } else {
 	    	logger.debug("first and last message is null");
-	    	for (Event e : events) {
-	    		logger.debug("this batch message is {}" , new String(e.getBody(),"UTF-8"));	
-	    	}
 	    }
 	    
 	    if (annotateFileName) {
@@ -349,7 +355,7 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 		if (dateInFile != null) {
 			String completeFlag = CompleteFlagFileUtil.getCompleteFlagFromFile(this.comFlagFileName);
 			/*文件名有日期，且比completefile中存的消息小的时候，表示已完成收集*/
-			if (dateInFile.compareTo(completeFlag) < 0) {
+			if (dateInFile.compareTo(completeFlag) <= 0) {
 				logger.info("File:{} is a completed File", fileName);
 				return true;
 			} 
@@ -372,9 +378,14 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 		if(inputFilename.toLowerCase().contains(substringOfTargetFile.toLowerCase())){
 			return true;
 		} else if (!DateUtil.isContainsDateFormat(inputFilename)) {
-			logger.info("file {} do not contains date info, we think it is current file", inputFilename);
-			return true;
+			
+			logger.info("current read file {} date is {}", inputFilename, this.currentFileDateFlag);
+			if (this.currentFileDateFlag.equals(substringOfTargetFile)) {
+				logger.info("current read file {} do not contains date info, we think it is current file by check", inputFilename);
+				return true;
+			}
 		}
+		logger.info("file {} is no longer target file", inputFilename);
 		return false;
 	}
 	
@@ -420,7 +431,10 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	   * @throws IOException
 	   */
 	  private void rollCurrentFile(File fileToRoll) throws IOException {
-
+		String completeFlag = this.currentFileDateFlag;
+		logger.info("prepare to update complete flag {} when roll this file",
+				completeFlag);
+		CompleteFlagFileUtil.updateFlagInFile(comFlagFileName, completeFlag);
 	    logger.info("Preparing to delete the meta file ");
 	    // now we no longer need the meta file
 	    deleteMetaFile();
@@ -511,11 +525,9 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	   */
 	  private Optional<FileInfo> openFile(File file) {    
 	    try {
-	      /*如果即将读的新文件不带日期话，说明已经读到当天的日志文件了，将当天的日期更新到completeflagfile中去*/
-	      String completeFlag = DateUtil.getDateFormatFromFileName(file.getName()) ==null ?
+	      /*如果即将读的新文件不带日期话，说明已经读到当天的日志文件了，将昨天的日期更新到completeflagfile中去*/
+	      String dateOfNewFile = DateUtil.getDateFormatFromFileName(file.getName()) ==null ?
 	    		  DateUtil.convertDatetoString(new Date()): DateUtil.getDateFormatFromFileName(file.getName());
-	      logger.info("prepare to update complete flag {} when open the next new file", completeFlag);
-	      CompleteFlagFileUtil.updateFlagInFile(comFlagFileName, completeFlag);
 	      // roll the meta file, if needed
 	      String nextPath = file.getPath();
 	      nextPath = appendDateInfo(nextPath);
@@ -538,7 +550,9 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	              decodeErrorPolicy);
 	      EventDeserializer deserializer = EventDeserializerFactory.getInstance
 	          (deserializerType, deserializerContext, in);
-
+	      /*每次打开一个新的文件时都要记录下*/
+	      this.currentFileDateFlag = dateOfNewFile;
+	      
 	      return Optional.of(new FileInfo(file, deserializer));
 	    } catch (FileNotFoundException e) {
 	      // File could have been deleted in the interim
