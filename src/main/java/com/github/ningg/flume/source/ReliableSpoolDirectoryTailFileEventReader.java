@@ -67,7 +67,7 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	private final Context deserializerContext;
 	private final Pattern ignorePattern;
 	private final Pattern targetPattern;
-	private final String targetFilename;
+	private final String targetFilename; //目标文件所带的日期的格式
 	private final File metaFile;
 	private final boolean annotateFileName;
 	private final boolean annotateBaseName;
@@ -285,6 +285,7 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	    
 	    if (annotateFileName) {
 	      String filename = currentFile.get().getFile().getAbsolutePath();
+			logger.debug("file header key is {}, value is {}" , fileNameHeader,filename);
 	      for (Event event : events) {
 	        event.getHeaders().put(fileNameHeader, filename);
 	      }
@@ -313,7 +314,9 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 		if (candidateFiles.isEmpty()){ 	// No matching file in spooling directory.
 			return false;
 		}
-		
+		 for (File file :candidateFiles) {
+			 logger.info("File to be collected are:{} ", file.getName());
+		 }
 		if (candidateFiles.size() >= 2) {	// Only when two file exist. (Since current file is there.)
 			return true;
 		}
@@ -337,7 +340,8 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 					return false;
 				}
 				if( targetPattern.matcher(fileName).matches() ){
-					return true; 
+					logger.debug("File:{} is a target pattern File", fileName);
+					return true;
 				}
 				return false;
 			}
@@ -353,14 +357,14 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 		String dateInFile = DateUtil.getDateFormatFromFileName(fileName);
 		/*文件名中不包含日期，按我们现在的格式，代表是当天的文件，当然是未完成的*/
 		if (dateInFile != null) {
-			String completeFlag = CompleteFlagFileUtil.getCompleteFlagFromFile(this.comFlagFileName);
+			String completeFlag = CompleteFlagFileUtil.getCompleteFlagFromFile(this.comFlagFileName, this.targetFilename);
 			/*文件名有日期，且比completefile中存的消息小的时候，表示已完成收集*/
 			if (dateInFile.compareTo(completeFlag) <= 0) {
-				logger.info("File:{} is a completed File", fileName);
+				logger.debug("File:{} is a completed File", fileName);
 				return true;
 			} 
 		}
-		logger.info("File:{} is a to be collected File only base on time", fileName);
+		logger.debug("File:{} is a to be collected File only base on time", fileName);
 		return false;
 	}
 	
@@ -480,7 +484,10 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 		if (candidateFiles.isEmpty()){	// No matching file in spooling directory.
 			return Optional.absent();
 		}
-		
+		for (File file : candidateFiles) {
+			logger.info("Files are {}", file.getName());
+		}
+
 		File selectedFile = candidateFiles.get(0);	// Select the first random file.
 		if (consumeOrder == ConsumeOrder.RANDOM) {	// Selected file is random.
 			return openFile(selectedFile);
@@ -504,7 +511,7 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 				}
 			}
 		}
-		
+		logger.info("next file is {}", selectedFile.getName());
 		return openFile(selectedFile);
 	}
 	
@@ -527,7 +534,7 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	    try {
 	      /*如果即将读的新文件不带日期话，说明已经读到当天的日志文件了，将昨天的日期更新到completeflagfile中去*/
 	      String dateOfNewFile = DateUtil.getDateFormatFromFileName(file.getName()) ==null ?
-	    		  DateUtil.convertDatetoString(new Date()): DateUtil.getDateFormatFromFileName(file.getName());
+	    		  DateUtil.convertDatetoString2(new Date(),targetFilename): DateUtil.getDateFormatFromFileName(file.getName());
 	      // roll the meta file, if needed
 	      String nextPath = file.getPath();
 	      nextPath = appendDateInfo(nextPath);
@@ -574,7 +581,7 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	private String appendDateInfo(String nextPath) {
 		if (!DateUtil.isContainsDateFormat(nextPath)) {
 			logger.info("file {} need to append dateInfo when to create tracker for meta", nextPath);
-			nextPath = nextPath + "." + DateUtil.convertDatetoString(new Date());
+			nextPath = nextPath + "." + DateUtil.convertDatetoString2(new Date(),targetFilename);
 		}
 		return nextPath;
 	}

@@ -25,7 +25,7 @@ public class CompleteFlagFileUtil {
 	
 	private static final Logger logger = LoggerFactory.getLogger(ReliableSpoolDirectoryTailFileEventReader.class);
 	
-	public static String getCompleteFlagFromFile(String filePath) {
+	public static String getCompleteFlagFromFile(String filePath,String format) {
 		
 		File cfFile = new File(filePath);
 		if (!cfFile.exists()) {
@@ -34,8 +34,7 @@ public class CompleteFlagFileUtil {
 				logger.info("Successfully create file {}", cfFile.getName());
 				
 				Date date = new Date();
-				SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-				String dateFormat = sdf.format(date);
+				String dateFormat = DateUtil.getLastTimeUnit(date,format);
 				writeToFile(cfFile, dateFormat);
             } catch (IOException e) {  
             	logger.error("Unable to create new completeflag file " +
@@ -53,7 +52,7 @@ public class CompleteFlagFileUtil {
 				s = s.trim();
 				flag = s;
 			}
-			logger.info("complete flag in file is {}", flag);
+			logger.debug("complete flag in file is {}", flag);
 			return flag;
 		} catch (Exception e) {
 			logger.error("Unable to read completeflag file " +cfFile.getName()+

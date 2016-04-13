@@ -6,6 +6,8 @@ import java.nio.charset.Charset;
 import org.apache.flume.Event;
 import org.apache.flume.event.EventBuilder;
 import org.junit.Test;
+import java.util.Date;
+import java.util.regex.Pattern;
 
 import com.github.ningg.flume.source.DateUtil;
 
@@ -19,20 +21,26 @@ public class TestDateUtil {
 	
 	@Test
 	public void testgetDateFromFile() {
-		String date ="/opt/app/msky/access_ipfilter.log.2015-09-02.gz";
+		String date ="/opt/app/msky/access_ipfilter.log.2015-09-02-11-01.gz";
 		String s = DateUtil.getDateFormatFromFileName(date);
 		if (s != null) {
 			System.out.println(s);
+		}
+		if("2016-04-12-01".compareTo("2016-04-12-02") < 0) {
+			System.out.println("1");
 		}
 	}
 	
 	@Test
 	public void testgetYestDay() {
-		String date ="2015-03-01";
-		String s = DateUtil.getYesterDay(date);
+		String dateformat ="yyyy-MM-dd";
+		Date date = new Date();
+		String s = DateUtil.getLastTimeUnit(date,dateformat);
 		if (s != null) {
 			System.out.println(s);
 		}
+		Pattern targetPattern =  Pattern.compile(".*server.log.*");
+		System.out.println(targetPattern.matcher("server.log.2016-04-13").matches());
 	}
 	
 	@Test

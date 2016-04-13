@@ -9,7 +9,7 @@ public class TestCompleteFlagUtil {
 	@Test
 	public void testGetFlagFromFile() {
 		String path ="D:/flume_test.txt";
-		System.out.println(CompleteFlagFileUtil.getCompleteFlagFromFile(path));
+		System.out.println(CompleteFlagFileUtil.getCompleteFlagFromFile(path,"yyy-MM-dd"));
 	}
 	
 	@Test
