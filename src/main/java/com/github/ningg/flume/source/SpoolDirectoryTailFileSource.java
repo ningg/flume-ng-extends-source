@@ -75,8 +75,7 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 	private static final Logger logger = LoggerFactory.getLogger(SpoolDirectoryTailFileSource.class);
 
 	private static final Logger sourcelogger = LoggerFactory.getLogger(SourceCounter.class);
-	private long lastprinttime;
-	private long currenttime;
+	private long lastprinttime = 0;
 	// Delay used when polling for new files
 	private static final int POLL_DELAY_MS = 500;
 	
@@ -144,7 +143,6 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 		
 		super.start();
 		logger.debug("SpoolDirectoryTailFileSource source started");
-		lastprinttime = System.currentTimeMillis();
 		sourceCounter.start();
 		
 	}
@@ -200,7 +198,6 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 		completeFileName = getName()+"_cflag.txt";
 				
 		maxBackoff = context.getInteger(MAX_BACKOFF, DEFAULT_MAX_BACKOFF);
-		
 		if(sourceCounter == null){
 			sourceCounter = new SourceCounter(getName());
 		}
@@ -219,7 +216,7 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 		@Override
 		public void run() {
 		  int backoffInterval = 250;
-
+		  sourcelogger.info("lastprintime is {}", lastprinttime);
 	      try {
 	        while (!Thread.interrupted()) {
 	          List<Event> events = reader.readEvents(batchSize);
@@ -253,9 +250,10 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 	          backoffInterval = 250;
 	          sourceCounter.addToEventAcceptedCount(events.size());
 	          sourceCounter.incrementAppendBatchAcceptedCount();
-			  currenttime = System.currentTimeMillis();
+			  long currenttime = System.currentTimeMillis();
 			  if ((currenttime - lastprinttime)/1000 >= 10) {
 				sourcelogger.info("source count is {}", sourceCounter);
+				lastprinttime = currenttime;
 			  }
 	        }
 	        
