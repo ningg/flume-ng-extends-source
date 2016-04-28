@@ -527,7 +527,7 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	/**
 	   * Opens a file for consuming
 	   * @param file
-	   * @return {@link #FileInfo} for the file to consume or absent option if the
+	   * @return {@link FileInfo} for the file to consume or absent option if the
 	   * file does not exists or readable.
 	   */
 	  private Optional<FileInfo> openFile(File file) {    

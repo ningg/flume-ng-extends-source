@@ -73,7 +73,10 @@ import com.google.common.base.Throwables;
 public class SpoolDirectoryTailFileSource extends AbstractSource implements Configurable, EventDrivenSource{
 
 	private static final Logger logger = LoggerFactory.getLogger(SpoolDirectoryTailFileSource.class);
-	
+
+	private static final Logger sourcelogger = LoggerFactory.getLogger(SourceCounter.class);
+	private long lastprinttime;
+	private long currenttime;
 	// Delay used when polling for new files
 	private static final int POLL_DELAY_MS = 500;
 	
@@ -141,6 +144,7 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 		
 		super.start();
 		logger.debug("SpoolDirectoryTailFileSource source started");
+		lastprinttime = System.currentTimeMillis();
 		sourceCounter.start();
 		
 	}
@@ -215,6 +219,7 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 		@Override
 		public void run() {
 		  int backoffInterval = 250;
+
 	      try {
 	        while (!Thread.interrupted()) {
 	          List<Event> events = reader.readEvents(batchSize);
@@ -248,7 +253,10 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 	          backoffInterval = 250;
 	          sourceCounter.addToEventAcceptedCount(events.size());
 	          sourceCounter.incrementAppendBatchAcceptedCount();
-	          logger.debug("source count is {}", sourceCounter);
+			  currenttime = System.currentTimeMillis();
+			  if ((currenttime - lastprinttime)/1000 >= 10) {
+				sourcelogger.info("source count is {}", sourceCounter);
+			  }
 	        }
 	        
 	        // logger.info("Spooling Directory Tail File Source runner has shutdown.");

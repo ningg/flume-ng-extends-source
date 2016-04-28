@@ -3,8 +3,20 @@
   <groupId>com.github.ningg.flume.source</groupId>
   <artifactId>flume-ng-extends-source</artifactId>
   <version>0.8.2</version>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<source>1.6</source>
+					<target>1.6</target>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 
-  <properties>
+	<properties>
   	<!-- set replicate and compile charset -->
   	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
