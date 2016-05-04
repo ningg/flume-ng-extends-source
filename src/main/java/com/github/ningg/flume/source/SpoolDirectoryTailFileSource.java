@@ -216,7 +216,6 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 		@Override
 		public void run() {
 		  int backoffInterval = 250;
-		  sourcelogger.info("lastprintime is {}", lastprinttime);
 	      try {
 	        while (!Thread.interrupted()) {
 	          List<Event> events = reader.readEvents(batchSize);
