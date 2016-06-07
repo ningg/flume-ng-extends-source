@@ -57,4 +57,39 @@ public class TestDateUtil {
 			e1.printStackTrace();
 		}
 	}
+
+	@Test
+	public void testEncoding() {
+		String s = "中文";
+		try {
+			byte [] iso = s.getBytes("GBK");
+
+			byte [] iso3 = s.getBytes("ISO-8859-1");
+			String sg = new String(iso, "ISO-8859-1");
+			String sr = new String(sg.getBytes("ISO-8859-1"), "GBK");
+			byte [] iso2 = s.getBytes("GBK");
+			System.out.println(sg);
+			System.out.println(sr);
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	@Test
+	public void testEncoding2() {
+		String s = "中文";
+		try {
+			byte [] iso = s.getBytes("UTF-8");
+			byte [] iso1 = s.getBytes("GBK");
+			String s1 = new String(iso, "UTF-8");
+			String s2 = new String(iso1, "UTF-8");
+			System.out.println(s1);
+			System.out.println(s2);
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+
+	}
+
 }

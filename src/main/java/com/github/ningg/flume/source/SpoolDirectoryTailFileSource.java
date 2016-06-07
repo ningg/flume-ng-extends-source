@@ -1,39 +1,5 @@
 package com.github.ningg.flume.source;
 
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.BASENAME_HEADER;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.BASENAME_HEADER_KEY;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.BATCH_SIZE;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.CONSUME_ORDER;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DECODE_ERROR_POLICY;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_BASENAME_HEADER;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_BASENAME_HEADER_KEY;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_BATCH_SIZE;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_CONSUME_ORDER;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_DECODE_ERROR_POLICY;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_DELETE_POLICY;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_DESERIALIZER;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_FILENAME_HEADER;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_FILENAME_HEADER_KEY;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_IGNORE_PAT;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_INPUT_CHARSET;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_MAX_BACKOFF;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_SPOOLED_FILE_SUFFIX;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_TARGET_FILENAME;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_TARGET_PAT;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_TRACKER_DIR;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DELETE_POLICY;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DESERIALIZER;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.FILENAME_HEADER;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.FILENAME_HEADER_KEY;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.IGNORE_PAT;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.INPUT_CHARSET;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.MAX_BACKOFF;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.SPOOLED_FILE_SUFFIX;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.SPOOL_DIRECTORY;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.TARGET_FILENAME;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.TARGET_PAT;
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.TRACKER_DIR;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -57,6 +23,8 @@ import org.slf4j.LoggerFactory;
 import com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.ConsumeOrder;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.*;
 
 
 /**
@@ -106,6 +74,9 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 	private int maxBackoff;
 	private ConsumeOrder consumeOrder;
 	private String completeFileName;
+	private String originFileEncoding;
+	private String needConvertAfterSource;
+
 	
 	@Override
 	public synchronized void start(){
@@ -133,6 +104,8 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 							.decodeErrorPolicy(decodeErrorPolicy)
 							.consumeOrder(consumeOrder)
 							.completeFlagFileName(completeFileName)
+							.originFileEncoding(originFileEncoding)
+							.needCovertAfterSource(needConvertAfterSource)
 							.build();
 		} catch (IOException e) {
 			throw new FlumeException("Error instantiating spooling and tail event parser", e);
@@ -196,7 +169,12 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 		
 		consumeOrder = ConsumeOrder.valueOf(context.getString(CONSUME_ORDER, DEFAULT_CONSUME_ORDER.toString()).toUpperCase());
 		completeFileName = getName()+"_cflag.txt";
-				
+
+		//原始文件的编码格式，为防止中文问题，中间buff采用了ISO-8859-1的编码格式，
+		//因为想发到kafka上是utf-8， 如果源文件是gbk，则发到sink前还需要转一次
+		originFileEncoding = context.getString(ORIGNFILE_ENCODING, DEFAULT_ORIGN_FILEENCODING);
+		needConvertAfterSource = context.getString(NEEDCONVERTAFTERSOURCE, DEFAULT_NEEDCONVERTAFTERSOURCE);
+
 		maxBackoff = context.getInteger(MAX_BACKOFF, DEFAULT_MAX_BACKOFF);
 		if(sourceCounter == null){
 			sourceCounter = new SourceCounter(getName());

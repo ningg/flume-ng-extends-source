@@ -27,6 +27,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.FlumeException;
@@ -80,7 +81,9 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	
 	private final String comFlagFileName;
 	private String currentFileDateFlag; //当前在读的文件的日期标记，只在第一次打开此文件时记录
-	
+	private final String originFileEncoding; //原始文件的日志格式
+	private final boolean needConvertAfterSource;//进去sink前是否需要转格式才能变成UTF-
+
 	private Optional<FileInfo> currentFile = Optional.absent();
 	/** Always contains the last file from which lines have been read. **/
 	private Optional<FileInfo> lastFileRead = Optional.absent();
@@ -96,7 +99,7 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	      String deserializerType, Context deserializerContext,
 	      String deletePolicy, String inputCharset,
 	      DecodeErrorPolicy decodeErrorPolicy, 
-	      ConsumeOrder consumeOrder, String completedFileName) throws IOException {
+	      ConsumeOrder consumeOrder, String completedFileName, String originFileEncoding, boolean needConvertAfterSource) throws IOException {
 
 	    // Sanity checks
 	    Preconditions.checkNotNull(spoolDirectory);
@@ -186,6 +189,8 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	    this.metaFile = new File(trackerDirectory, metaFileName);
 	    //生成completeFlagFile的绝对路径
 	    this.comFlagFileName = trackerDirectory.getAbsolutePath()+ "/"+ completedFileName;
+		this.originFileEncoding = originFileEncoding;
+		this.needConvertAfterSource = needConvertAfterSource;
 	    logger.info("complete flag file path is {}", comFlagFileName);
 	  }
 	
@@ -266,9 +271,9 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	    
 	    logger.info("size is " + events.size());
 	    if (events.size() > 0) {
-	    	logger.debug("first message is "+new String(events.get(0).getBody(),"UTF-8"));
-	    	String firmessage = new String(events.get(0).getBody(),"UTF-8");
-	    	String lastmessage = new String(events.get(events.size()-1).getBody(),"UTF-8");
+	    	logger.debug("first message is "+new String(events.get(0).getBody(),originFileEncoding));
+	    	String firmessage = new String(events.get(0).getBody(),originFileEncoding);
+	    	String lastmessage = new String(events.get(events.size()-1).getBody(),originFileEncoding);
 	    	if (lastmessage.equals(" ")) {
 	    		logger.debug("remove last message");
 	    		/*\r可能被作为line，构造了一个事件，要删除*/
@@ -278,7 +283,14 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	    			events.get(0).setBody((" "+firmessage).getBytes());
 	    		}
 	    	}
-	    	logger.debug("last message is" +new String(events.get(events.size()-1).getBody(),"UTF-8"));
+			if (needConvertAfterSource) {
+				//进入kafka sink之前，统一给搞成UTF-8
+				for (Event e : events) {
+					e.setBody(new String(e.getBody(),originFileEncoding).getBytes("UTF-8"));
+				}
+			}
+			logger.debug("first message after convert is "+new String(events.get(0).getBody(),"UTF-8"));
+	    	logger.debug("last message is " +new String(events.get(events.size()-1).getBody(),"UTF-8"));
 	    } else {
 	    	logger.debug("first and last message is null");
 	    }
@@ -660,7 +672,9 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 		private DecodeErrorPolicy decodeErrorPolicy = DecodeErrorPolicy.valueOf(DEFAULT_DECODE_ERROR_POLICY.toUpperCase());
 		private ConsumeOrder consumeOrder = DEFAULT_CONSUME_ORDER;
 		private String completeFlagFileName;
-		
+		private String originFileEncoding;
+		private boolean needCovertAfterSource;
+
 		public Builder spoolDirectory(File directory) {
 	      this.spoolDirectory = directory;
 	      return this;
@@ -745,16 +759,29 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 			this.consumeOrder = consumeOrder;
 			return this;
 		}
+
+		public Builder originFileEncoding(String originFileEncoding) {
+			this.originFileEncoding = originFileEncoding;
+			return this;
+		}
+
+		public Builder needCovertAfterSource(String needCovertAfterSource) {
+			if (StringUtils.equalsIgnoreCase(needCovertAfterSource, "true")) {
+				this.needCovertAfterSource = true;
+				return this;
+			}
+			this.needCovertAfterSource = false;
+			return this;
+		}
 		
 	    public ReliableSpoolDirectoryTailFileEventReader build() throws IOException {
 	        return new ReliableSpoolDirectoryTailFileEventReader(spoolDirectory, completedSuffix,
 	            ignorePattern, targetPattern, targetFilename, trackerDirPath, annotateFileName, fileNameHeader,
 	            annotateBaseName, baseNameHeader, deserializerType,
 	            deserializerContext, deletePolicy, inputCharset, decodeErrorPolicy,
-	            consumeOrder, completeFlagFileName);
+	            consumeOrder, completeFlagFileName, originFileEncoding, needCovertAfterSource);
 	      }
-		
-		
+
 	}
 	
 

@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.github.ningg.flume.source</groupId>
   <artifactId>flume-ng-extends-source</artifactId>
-  <version>0.8.2</version>
+  <version>0.8.3</version>
 	<build>
 		<plugins>
 			<plugin>
