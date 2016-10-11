@@ -315,7 +315,9 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	    return events;
 	}
 
-	/**
+	/**追踪滚动到新文件：判断是否有下一个可读文件时，不能再使用{符合条件的文件大于等于2个}（当前在读的，新生成的）这个条件了
+	 * 原因：假设这一种情况，10-08号的a.log读的比较慢，到9号时，归档脚本将a.log变成a.log.2016-10-08.gz。过了会8号a.log读完后，
+	 * 在进行判断是否有下一个可读文件时，发现只有一个可读的a.log（9号的，当前在读的8号的变成gz了），因此一直不能追踪到新文件
 	 * refer to {@link #getNextFile()}
 	 * @return
 	 */
@@ -326,13 +328,19 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 		if (candidateFiles.isEmpty()){ 	// No matching file in spooling directory.
 			return false;
 		}
-		 for (File file :candidateFiles) {
-			 logger.info("File to be collected are:{} ", file.getName());
+		 for (File file : candidateFiles) {
+			 String dateOfCandidateFile = DateUtil.getDateFormatFromFileName(file.getName()) == null ?
+					 DateUtil.convertDatetoString2(new Date(), targetFilename) : DateUtil.getDateFormatFromFileName(file.getName());
+			 if (dateOfCandidateFile.compareTo(this.currentFileDateFlag) > 0) {
+				 logger.info("New file to be collected is:{} ", file.getName());
+				 return true;
+			 } else {
+				 logger.info("File is not a new file:{} ", file.getName());
+			 }
 		 }
-		if (candidateFiles.size() >= 2) {	// Only when two file exist. (Since current file is there.)
-			return true;
-		}
-		
+//		if (candidateFiles.size() >= 2 ) {	// Only when two file exist. (Since current file is there.)
+//			return true;
+//		}
 		return false;
 	}
 

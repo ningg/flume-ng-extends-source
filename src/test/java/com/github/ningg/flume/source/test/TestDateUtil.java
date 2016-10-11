@@ -92,4 +92,14 @@ public class TestDateUtil {
 
 	}
 
+	@Test
+	public void testConverDateString() {
+		String s = DateUtil.convertDatetoString2(new Date(), "yyyy-MM-dd-HH");
+		if (s != null) {
+			System.out.println(s);
+		}
+		if("2016-10-11-01".compareTo(s) < 0) {
+			System.out.println("1");
+		}
+	}
 }
