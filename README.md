@@ -102,7 +102,7 @@ Extends source of Flume NG for tailing files and folders.
 
 	${FLUME_HOME}
 	 |-- plugins.d
-			|-- flume-ng-extends-source/lib
+			|-- flume-ng-extends-source
 				|-- lib
 					|-- flume-ng-extends-source-x.x.x.jar
 				|-- libext
