@@ -94,12 +94,16 @@ public class TestDateUtil {
 
 	@Test
 	public void testConverDateString() {
-		String s = DateUtil.convertDatetoString2(new Date(), "yyyy-MM-dd-HH");
-		if (s != null) {
-			System.out.println(s);
-		}
-		if("2016-10-11-01".compareTo(s) < 0) {
-			System.out.println("1");
-		}
+//		String s = DateUtil.convertDatetoString2(new Date(), "yyyy-MM-dd-HH");
+//		if (s != null) {
+//			System.out.println(s);
+//		}
+//		if("2016-10-11-01".compareTo(s) < 0) {
+//			System.out.println("1");
+//		}
+		Pattern targetPattern = Pattern.compile("json.0*");
+
+		boolean matches = targetPattern.matcher("json.0.2017").matches();
+		System.out.println(matches);
 	}
 }

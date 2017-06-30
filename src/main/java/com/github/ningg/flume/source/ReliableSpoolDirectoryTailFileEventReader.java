@@ -328,9 +328,11 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 		if (candidateFiles.isEmpty()){ 	// No matching file in spooling directory.
 			return false;
 		}
+		//文件不带日期时，不能用new date()作为文件日志， 比如昨天是8号，中间如果一直没打日志的话，到了9号 8号的那个文件还是不带日期的
+		 //那么会将8号的文件误判为new date()的文件
 		 for (File file : candidateFiles) {
 			 String dateOfCandidateFile = DateUtil.getDateFormatFromFileName(file.getName()) == null ?
-					 DateUtil.convertDatetoString2(new Date(), targetFilename) : DateUtil.getDateFormatFromFileName(file.getName());
+					 DateUtil.convertDatetoString2(new Date(file.lastModified()), targetFilename) : DateUtil.getDateFormatFromFileName(file.getName());
 			 if (dateOfCandidateFile.compareTo(this.currentFileDateFlag) > 0) {
 				 logger.info("New file to be collected is:{} ", file.getName());
 				 return true;
@@ -356,7 +358,7 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 				if( (candidate.isDirectory()) || 
 					(fileName.startsWith(".")) ||
 					(ignorePattern.matcher(fileName).matches()) ||
-					(isCompletedFile(fileName))){
+					(isCompletedFile(fileName, candidate))){
 					return false;
 				}
 				if( targetPattern.matcher(fileName).matches() ){
@@ -373,16 +375,24 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	 * 根据completedFlagFile判断是否是已完成收集的文件
 	 * @return true --finished false--need collected
 	 */
-	public boolean isCompletedFile(String fileName) {
+	public boolean isCompletedFile(String fileName, File candidate) {
 		String dateInFile = DateUtil.getDateFormatFromFileName(fileName);
+		String completeFlag = CompleteFlagFileUtil.getCompleteFlagFromFile(this.comFlagFileName, this.targetFilename);
 		/*文件名中不包含日期，按我们现在的格式，代表是当天的文件，当然是未完成的*/
 		if (dateInFile != null) {
-			String completeFlag = CompleteFlagFileUtil.getCompleteFlagFromFile(this.comFlagFileName, this.targetFilename);
+
 			/*文件名有日期，且比completefile中存的消息小的时候，表示已完成收集*/
 			if (dateInFile.compareTo(completeFlag) <= 0) {
 				logger.debug("File:{} is a completed File", fileName);
 				return true;
 			} 
+		} else {
+			String dateOfFileModify = DateUtil.convertDatetoString2(new Date(candidate.lastModified()), targetFilename);
+			//文件里不含日期的情况下，最后修改时间小于完成时间的认为已完成， 但等于的应该是当前文件
+			if (dateOfFileModify.compareTo(completeFlag) < 0) {
+				logger.debug("File:{} is a completed File with modifytime {}", fileName, dateOfFileModify);
+				return true;
+			}
 		}
 		logger.debug("File:{} is a to be collected File only base on time", fileName);
 		return false;
@@ -554,10 +564,10 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	    try {
 	      /*如果即将读的新文件不带日期话，说明已经读到当天的日志文件了，将昨天的日期更新到completeflagfile中去*/
 	      String dateOfNewFile = DateUtil.getDateFormatFromFileName(file.getName()) ==null ?
-	    		  DateUtil.convertDatetoString2(new Date(),targetFilename): DateUtil.getDateFormatFromFileName(file.getName());
+	    		  DateUtil.convertDatetoString2(new Date(file.lastModified()),targetFilename): DateUtil.getDateFormatFromFileName(file.getName());
 	      // roll the meta file, if needed
 	      String nextPath = file.getPath();
-	      nextPath = appendDateInfo(nextPath);
+	      nextPath = appendDateInfo(nextPath, dateOfNewFile);
 	      PositionTracker tracker =
 	          DurablePositionTracker.getInstance(metaFile, nextPath);
 	      if (!tracker.getTarget().equals(nextPath)) {
@@ -595,13 +605,14 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	  *  meta要与log文件名字相关联，假若即将要读取的新文件不带日期的话，人为地给加上，这样tracker实例中log文件与meta文件（target）名字关联起来
 	  * 这样强制加上日期，主要是防止隔天重启的情况下，tracker记录的昨天的position反而变成了今天的position
 	  * e.g. 03-31号，只有是当天的文件a.log，meta的Tracker实例才会在target加上a.log.2016-03-31
+	  *
 	  * @param nextPath
 	  * @return
 	  */
-	private String appendDateInfo(String nextPath) {
+	private String appendDateInfo(String nextPath, String dateOfNewFile) {
 		if (!DateUtil.isContainsDateFormat(nextPath)) {
-			logger.info("file {} need to append dateInfo when to create tracker for meta", nextPath);
-			nextPath = nextPath + "." + DateUtil.convertDatetoString2(new Date(),targetFilename);
+			logger.info("file {} need to append dateInfo when to create tracker for meta with date {}", nextPath, dateOfNewFile);
+			nextPath = nextPath + "." + dateOfNewFile;
 		}
 		return nextPath;
 	}
