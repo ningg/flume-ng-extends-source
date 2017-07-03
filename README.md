@@ -53,7 +53,7 @@ Extends source of Flume NG for tailing files and folders.
 
 * 实时：日志产生后，应以秒级的延时，收集发送走；
 * 可靠：一旦日志收集程序终止，保证重启之后，日志数据不丢失，并且不重复发送；
-* 历史日志文件处理策略：已经收集过的历史日志文件，应立即删除，或者被移送到指定目录；
+* 历史日志文件处理策略：已经收集过的历史日志文件，为了不侵入原文件，因此策略为不修改文件名；
 
 
 
@@ -174,6 +174,8 @@ Flume插件安装的更多细节，参考[Flume User Guide](https://flume.apache
 |selector.*	| 	|Depends on the `selector.type` value|
 |interceptors|	–	|Space-separated list of interceptors|
 |interceptors.*	|  |  |
+|inputCharset|ISO8859-1  |Charset which the deserializer treat the buffer content  |
+|originFileCharset|  |File Charset|
 
 
 **补充**：上述，selector和interceptor的作用？
