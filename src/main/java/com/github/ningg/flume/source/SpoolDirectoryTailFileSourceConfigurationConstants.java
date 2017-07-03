@@ -74,7 +74,12 @@ public class SpoolDirectoryTailFileSourceConfigurationConstants {
 	
 	public static final String CONSUME_ORDER = "consumeOrder"; 
 	public static final ConsumeOrder DEFAULT_CONSUME_ORDER = ConsumeOrder.OLDEST;
-	
+
+	public static final String ORIGNFILE_ENCODING = "originFileCharset";
+	public static final String DEFAULT_ORIGN_FILEENCODING = "UTF-8";
+
+	public static final String NEEDCONVERTAFTERSOURCE = "needConvertAfterSource";
+	public static final String DEFAULT_NEEDCONVERTAFTERSOURCE = "false";
 	
 	
 	

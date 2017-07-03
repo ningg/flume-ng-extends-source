@@ -1,5 +1,20 @@
 package com.github.ningg.flume.source;
 
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_BASENAME_HEADER;
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_BASENAME_HEADER_KEY;
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_CONSUME_ORDER;
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_DECODE_ERROR_POLICY;
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_DELETE_POLICY;
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_DESERIALIZER;
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_FILENAME_HEADER;
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_FILENAME_HEADER_KEY;
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_IGNORE_PAT;
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_INPUT_CHARSET;
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_TARGET_FILENAME;
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_TARGET_PAT;
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.DEFAULT_TRACKER_DIR;
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.SPOOLED_FILE_SUFFIX;
+
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileNotFoundException;
@@ -12,6 +27,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.FlumeException;
@@ -24,14 +40,10 @@ import org.apache.flume.serialization.EventDeserializerFactory;
 import org.apache.flume.serialization.PositionTracker;
 import org.apache.flume.serialization.ResettableFileInputStream;
 import org.apache.flume.serialization.ResettableInputStream;
-import org.apache.flume.tools.PlatformDetect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.ConsumeOrder;
-
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.*;
-
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -56,7 +68,7 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	private final Context deserializerContext;
 	private final Pattern ignorePattern;
 	private final Pattern targetPattern;
-	private final String targetFilename;
+	private final String targetFilename; //目标文件所带的日期的格式
 	private final File metaFile;
 	private final boolean annotateFileName;
 	private final boolean annotateBaseName;
@@ -67,6 +79,11 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	private final DecodeErrorPolicy decodeErrorPolicy;
 	private final ConsumeOrder consumeOrder;
 	
+	private final String comFlagFileName;
+	private String currentFileDateFlag; //当前在读的文件的日期标记，只在第一次打开此文件时记录
+	private final String originFileEncoding; //原始文件的日志格式
+	private final boolean needConvertAfterSource;//进去sink前是否需要转格式才能变成UTF-
+
 	private Optional<FileInfo> currentFile = Optional.absent();
 	/** Always contains the last file from which lines have been read. **/
 	private Optional<FileInfo> lastFileRead = Optional.absent();
@@ -82,11 +99,11 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	      String deserializerType, Context deserializerContext,
 	      String deletePolicy, String inputCharset,
 	      DecodeErrorPolicy decodeErrorPolicy, 
-	      ConsumeOrder consumeOrder) throws IOException {
+	      ConsumeOrder consumeOrder, String completedFileName, String originFileEncoding, boolean needConvertAfterSource) throws IOException {
 
 	    // Sanity checks
 	    Preconditions.checkNotNull(spoolDirectory);
-	    Preconditions.checkNotNull(completedSuffix);
+//	    Preconditions.checkNotNull(completedSuffix);
 	    Preconditions.checkNotNull(ignorePattern);
 	    Preconditions.checkNotNull(targetPattern);
 	    Preconditions.checkNotNull(targetFilename);
@@ -147,7 +164,7 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	    this.inputCharset = Charset.forName(inputCharset);
 	    this.decodeErrorPolicy = Preconditions.checkNotNull(decodeErrorPolicy);
 	    this.consumeOrder = Preconditions.checkNotNull(consumeOrder);    
-
+	    
 	    File trackerDirectory = new File(trackerDirPath);
 
 	    // if relative path, treat as relative to spool directory
@@ -170,6 +187,11 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	    }
 
 	    this.metaFile = new File(trackerDirectory, metaFileName);
+	    //生成completeFlagFile的绝对路径
+	    this.comFlagFileName = trackerDirectory.getAbsolutePath()+ "/"+ completedFileName;
+		this.originFileEncoding = originFileEncoding;
+		this.needConvertAfterSource = needConvertAfterSource;
+	    logger.info("complete flag file path is {}", comFlagFileName);
 	  }
 	
 	  /** Return the filename which generated the data from the last successful
@@ -213,14 +235,14 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	        currentFile = getNextFile();
 	      }
 	      // Return empty list if no new files
+	     
 	      if (!currentFile.isPresent()) {
 	        return Collections.emptyList();
 	      }
 	    }
-
+		logger.info("file is {}", currentFile.get().getFile().getName());
 	    EventDeserializer des = currentFile.get().getDeserializer();
 	    List<Event> events = des.readEvents(numEvents);
-
 	    /* It's possible that the last read took us just up to a file boundary.
 	     * If so, try to roll to the next file, if there is one. */
 	    if (events.isEmpty()) {
@@ -246,9 +268,36 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	      }
 	      events = currentFile.get().getDeserializer().readEvents(numEvents);
 	    }
-
+	    
+	    logger.info("size is " + events.size());
+	    if (events.size() > 0) {
+	    	logger.debug("first message is "+new String(events.get(0).getBody(),originFileEncoding));
+	    	String firmessage = new String(events.get(0).getBody(),originFileEncoding);
+	    	String lastmessage = new String(events.get(events.size()-1).getBody(),originFileEncoding);
+	    	if (lastmessage.equals(" ")) {
+	    		logger.debug("remove last message");
+	    		/*\r可能被作为line，构造了一个事件，要删除*/
+	    		events.remove(events.size()-1);
+	    		/*此处弥补因为\r被上次batch给取走了，导致本次第一条消息开头没空格*/
+	    		if (!firmessage.startsWith(" ")) {
+	    			events.get(0).setBody((" "+firmessage).getBytes());
+	    		}
+	    	}
+			if (needConvertAfterSource) {
+				//进入kafka sink之前，统一给搞成UTF-8
+				for (Event e : events) {
+					e.setBody(new String(e.getBody(),originFileEncoding).getBytes("UTF-8"));
+				}
+			}
+			logger.debug("first message after convert is "+new String(events.get(0).getBody(),"UTF-8"));
+	    	logger.debug("last message is " +new String(events.get(events.size()-1).getBody(),"UTF-8"));
+	    } else {
+	    	logger.debug("first and last message is null");
+	    }
+	    
 	    if (annotateFileName) {
 	      String filename = currentFile.get().getFile().getAbsolutePath();
+			logger.debug("file header key is {}, value is {}" , fileNameHeader,filename);
 	      for (Event event : events) {
 	        event.getHeaders().put(fileNameHeader, filename);
 	      }
@@ -266,56 +315,111 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	    return events;
 	}
 
-	/**
+	/**追踪滚动到新文件：判断是否有下一个可读文件时，不能再使用{符合条件的文件大于等于2个}（当前在读的，新生成的）这个条件了
+	 * 原因：假设这一种情况，10-08号的a.log读的比较慢，到9号时，归档脚本将a.log变成a.log.2016-10-08.gz。过了会8号a.log读完后，
+	 * 在进行判断是否有下一个可读文件时，发现只有一个可读的a.log（9号的，当前在读的8号的变成gz了），因此一直不能追踪到新文件
 	 * refer to {@link #getNextFile()}
 	 * @return
 	 */
 	 private boolean isExistNextFile() {
 		 /* Filter to exclude finished or hidden files */
+		FileFilter filter = filterFilesTobeDone();
+		List<File> candidateFiles = Arrays.asList(spoolDirectory.listFiles(filter));
+		if (candidateFiles.isEmpty()){ 	// No matching file in spooling directory.
+			return false;
+		}
+		//文件不带日期时，不能用new date()作为文件日志， 比如昨天是8号，中间如果一直没打日志的话，到了9号 8号的那个文件还是不带日期的
+		 //那么会将8号的文件误判为new date()的文件
+		 for (File file : candidateFiles) {
+			 String dateOfCandidateFile = DateUtil.getDateFormatFromFileName(file.getName()) == null ?
+					 DateUtil.convertDatetoString2(new Date(file.lastModified()), targetFilename) : DateUtil.getDateFormatFromFileName(file.getName());
+			 if (dateOfCandidateFile.compareTo(this.currentFileDateFlag) > 0) {
+				 logger.info("New file to be collected is:{} ", file.getName());
+				 return true;
+			 } else {
+				 logger.info("File is not a new file:{} ", file.getName());
+			 }
+		 }
+//		if (candidateFiles.size() >= 2 ) {	// Only when two file exist. (Since current file is there.)
+//			return true;
+//		}
+		return false;
+	}
+
+	/**重构
+	 * 过滤掉已完成和不合要求的，筛选出需要被收集日志的文件集合
+	 * @return 返回一个FileFilter对象
+	 */
+	public FileFilter filterFilesTobeDone() {
 		FileFilter filter = new FileFilter() {
 			@Override
 			public boolean accept(File candidate) {
 				String fileName = candidate.getName();
 				if( (candidate.isDirectory()) || 
-					(fileName.endsWith(completedSuffix)) ||
 					(fileName.startsWith(".")) ||
-					(ignorePattern.matcher(fileName).matches()) ){
+					(ignorePattern.matcher(fileName).matches()) ||
+					(isCompletedFile(fileName, candidate))){
 					return false;
 				}
 				if( targetPattern.matcher(fileName).matches() ){
-					return true; 
+					logger.debug("File:{} is a target pattern File", fileName);
+					return true;
 				}
 				return false;
 			}
 		};
-		List<File> candidateFiles = Arrays.asList(spoolDirectory.listFiles(filter));
-		if (candidateFiles.isEmpty()){ 	// No matching file in spooling directory.
-			return false;
+		return filter;
+	}
+	
+	/**
+	 * 根据completedFlagFile判断是否是已完成收集的文件
+	 * @return true --finished false--need collected
+	 */
+	public boolean isCompletedFile(String fileName, File candidate) {
+		String dateInFile = DateUtil.getDateFormatFromFileName(fileName);
+		String completeFlag = CompleteFlagFileUtil.getCompleteFlagFromFile(this.comFlagFileName, this.targetFilename);
+		/*文件名中不包含日期，按我们现在的格式，代表是当天的文件，当然是未完成的*/
+		if (dateInFile != null) {
+
+			/*文件名有日期，且比completefile中存的消息小的时候，表示已完成收集*/
+			if (dateInFile.compareTo(completeFlag) <= 0) {
+				logger.debug("File:{} is a completed File", fileName);
+				return true;
+			} 
+		} else {
+			String dateOfFileModify = DateUtil.convertDatetoString2(new Date(candidate.lastModified()), targetFilename);
+			//文件里不含日期的情况下，最后修改时间小于完成时间的认为已完成， 但等于的应该是当前文件
+			if (dateOfFileModify.compareTo(completeFlag) < 0) {
+				logger.debug("File:{} is a completed File with modifytime {}", fileName, dateOfFileModify);
+				return true;
+			}
 		}
-		
-		if (candidateFiles.size() >= 2) {	// Only when two file exist. (Since current file is there.)
-			return true;
-		}
-		
+		logger.debug("File:{} is a to be collected File only base on time", fileName);
 		return false;
 	}
-
-	/**
+	
+	/** currentFile2 是a.log这种情况时，代表是当天的，也要返回true
 	   * Test if currentFile2 is the targetFile.
 	   * @param currentFile2
 	   * @return
 	   */
-	  
 	  private boolean isTargetFile(Optional<FileInfo> currentFile2) {
 		
 		String inputFilename = currentFile2.get().getFile().getName();
 		SimpleDateFormat dateFormat = new SimpleDateFormat(targetFilename);
 		String substringOfTargetFile = dateFormat.format(new Date());
-		
+		logger.info("check file {} is target when got an empty message", inputFilename);
 		if(inputFilename.toLowerCase().contains(substringOfTargetFile.toLowerCase())){
 			return true;
+		} else if (!DateUtil.isContainsDateFormat(inputFilename)) {
+			
+			logger.info("current read file {} date is {}", inputFilename, this.currentFileDateFlag);
+			if (this.currentFileDateFlag.equals(substringOfTargetFile)) {
+				logger.info("current read file {} do not contains date info, we think it is current file by check", inputFilename);
+				return true;
+			}
 		}
-		
+		logger.info("file {} is no longer target file", inputFilename);
 		return false;
 	}
 	
@@ -354,64 +458,20 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	    }
 	  }
 
-	  /**
+	  /**已完成的文件，仅仅把meta文件删除，不再加后缀，在flume挪到下一个新文件时，再去更新complete flag，
+	   * 考虑到今天和明天的文件重名，因此不在这里更新complete flag
 	   * Rename the given spooled file
 	   * @param fileToRoll
 	   * @throws IOException
 	   */
 	  private void rollCurrentFile(File fileToRoll) throws IOException {
-
-	    File dest = new File(fileToRoll.getPath() + completedSuffix);
-	    logger.info("Preparing to move file {} to {}", fileToRoll, dest);
-
-	    // Before renaming, check whether destination file name exists
-	    if (dest.exists() && PlatformDetect.isWindows()) {
-	      /*
-	       * If we are here, it means the completed file already exists. In almost
-	       * every case this means the user is violating an assumption of Flume
-	       * (that log files are placed in the spooling directory with unique
-	       * names). However, there is a corner case on Windows systems where the
-	       * file was already rolled but the rename was not atomic. If that seems
-	       * likely, we let it pass with only a warning.
-	       */
-	      if (Files.equal(currentFile.get().getFile(), dest)) {
-	        logger.warn("Completed file " + dest +
-	            " already exists, but files match, so continuing.");
-	        boolean deleted = fileToRoll.delete();
-	        if (!deleted) {
-	          logger.error("Unable to delete file " + fileToRoll.getAbsolutePath() +
-	              ". It will likely be ingested another time.");
-	        }
-	      } else {
-	        String message = "File name has been re-used with different" +
-	            " files. Spooling assumptions violated for " + dest;
-	        throw new IllegalStateException(message);
-	      }
-
-	    // Dest file exists and not on windows
-	    } else if (dest.exists()) {
-	      String message = "File name has been re-used with different" +
-	          " files. Spooling assumptions violated for " + dest;
-	      throw new IllegalStateException(message);
-
-	    // Destination file does not already exist. We are good to go!
-	    } else {
-	      boolean renamed = fileToRoll.renameTo(dest);
-	      if (renamed) {
-	        logger.debug("Successfully rolled file {} to {}", fileToRoll, dest);
-
-	        // now we no longer need the meta file
-	        deleteMetaFile();
-	      } else {
-	        /* If we are here then the file cannot be renamed for a reason other
-	         * than that the destination file exists (actually, that remains
-	         * possible w/ small probability due to TOC-TOU conditions).*/
-	        String message = "Unable to move " + fileToRoll + " to " + dest +
-	            ". This will likely cause duplicate events. Please verify that " +
-	            "flume has sufficient permissions to perform these operations.";
-	        throw new FlumeException(message);
-	      }
-	    }
+		String completeFlag = this.currentFileDateFlag;
+		logger.info("prepare to update complete flag {} when roll this file",
+				completeFlag);
+		CompleteFlagFileUtil.updateFlagInFile(comFlagFileName, completeFlag);
+	    logger.info("Preparing to delete the meta file ");
+	    // now we no longer need the meta file
+	    deleteMetaFile();
 	  }
 
 	  /**
@@ -448,28 +508,16 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	 * then returns any arbitrary file in the directory.
 	 */
 	private Optional<FileInfo> getNextFile(){
-		/* Filter to exclude finished or hidden files */
-		FileFilter filter = new FileFilter() {
-			@Override
-			public boolean accept(File candidate) {
-				String fileName = candidate.getName();
-				if( (candidate.isDirectory()) || 
-					(fileName.endsWith(completedSuffix)) ||
-					(fileName.startsWith(".")) ||
-					(ignorePattern.matcher(fileName).matches()) ){
-					return false;
-				}
-				if( targetPattern.matcher(fileName).matches() ){
-					return true; 
-				}
-				return false;
-			}
-		};
+		
+		FileFilter filter = filterFilesTobeDone();
 		List<File> candidateFiles = Arrays.asList(spoolDirectory.listFiles(filter));
 		if (candidateFiles.isEmpty()){	// No matching file in spooling directory.
 			return Optional.absent();
 		}
-		
+		for (File file : candidateFiles) {
+			logger.info("Files are {}", file.getName());
+		}
+
 		File selectedFile = candidateFiles.get(0);	// Select the first random file.
 		if (consumeOrder == ConsumeOrder.RANDOM) {	// Selected file is random.
 			return openFile(selectedFile);
@@ -493,7 +541,7 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 				}
 			}
 		}
-		
+		logger.info("next file is {}", selectedFile.getName());
 		return openFile(selectedFile);
 	}
 	
@@ -509,13 +557,17 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	/**
 	   * Opens a file for consuming
 	   * @param file
-	   * @return {@link #FileInfo} for the file to consume or absent option if the
+	   * @return {@link FileInfo} for the file to consume or absent option if the
 	   * file does not exists or readable.
 	   */
 	  private Optional<FileInfo> openFile(File file) {    
 	    try {
+	      /*如果即将读的新文件不带日期话，说明已经读到当天的日志文件了，将昨天的日期更新到completeflagfile中去*/
+	      String dateOfNewFile = DateUtil.getDateFormatFromFileName(file.getName()) ==null ?
+	    		  DateUtil.convertDatetoString2(new Date(file.lastModified()),targetFilename): DateUtil.getDateFormatFromFileName(file.getName());
 	      // roll the meta file, if needed
 	      String nextPath = file.getPath();
+	      nextPath = appendDateInfo(nextPath, dateOfNewFile);
 	      PositionTracker tracker =
 	          DurablePositionTracker.getInstance(metaFile, nextPath);
 	      if (!tracker.getTarget().equals(nextPath)) {
@@ -535,7 +587,9 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	              decodeErrorPolicy);
 	      EventDeserializer deserializer = EventDeserializerFactory.getInstance
 	          (deserializerType, deserializerContext, in);
-
+	      /*每次打开一个新的文件时都要记录下*/
+	      this.currentFileDateFlag = dateOfNewFile;
+	      
 	      return Optional.of(new FileInfo(file, deserializer));
 	    } catch (FileNotFoundException e) {
 	      // File could have been deleted in the interim
@@ -546,7 +600,23 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	      return Optional.absent();
 	    }
 	}
-	  
+	
+	 /**
+	  *  meta要与log文件名字相关联，假若即将要读取的新文件不带日期的话，人为地给加上，这样tracker实例中log文件与meta文件（target）名字关联起来
+	  * 这样强制加上日期，主要是防止隔天重启的情况下，tracker记录的昨天的position反而变成了今天的position
+	  * e.g. 03-31号，只有是当天的文件a.log，meta的Tracker实例才会在target加上a.log.2016-03-31
+	  *
+	  * @param nextPath
+	  * @return
+	  */
+	private String appendDateInfo(String nextPath, String dateOfNewFile) {
+		if (!DateUtil.isContainsDateFormat(nextPath)) {
+			logger.info("file {} need to append dateInfo when to create tracker for meta with date {}", nextPath, dateOfNewFile);
+			nextPath = nextPath + "." + dateOfNewFile;
+		}
+		return nextPath;
+	}
+
 	private void deleteMetaFile() throws IOException {
 	    if (metaFile.exists() && !metaFile.delete()) {
 	      throw new IOException("Unable to delete old meta file " + metaFile);
@@ -620,7 +690,10 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 		private String inputCharset = DEFAULT_INPUT_CHARSET;
 		private DecodeErrorPolicy decodeErrorPolicy = DecodeErrorPolicy.valueOf(DEFAULT_DECODE_ERROR_POLICY.toUpperCase());
 		private ConsumeOrder consumeOrder = DEFAULT_CONSUME_ORDER;
-		
+		private String completeFlagFileName;
+		private String originFileEncoding;
+		private boolean needCovertAfterSource;
+
 		public Builder spoolDirectory(File directory) {
 	      this.spoolDirectory = directory;
 	      return this;
@@ -696,20 +769,38 @@ public class ReliableSpoolDirectoryTailFileEventReader implements ReliableEventR
 	      return this;
 	    }
 	    
-	    public Builder consumeOrder(ConsumeOrder consumeOrder) {
-	      this.consumeOrder = consumeOrder;
+	    public Builder completeFlagFileName(String completeFileName) {
+	      this.completeFlagFileName = completeFileName;
 	      return this;
 	    } 
+	    
+		public Builder consumeOrder(ConsumeOrder consumeOrder) {
+			this.consumeOrder = consumeOrder;
+			return this;
+		}
+
+		public Builder originFileEncoding(String originFileEncoding) {
+			this.originFileEncoding = originFileEncoding;
+			return this;
+		}
+
+		public Builder needCovertAfterSource(String needCovertAfterSource) {
+			if (StringUtils.equalsIgnoreCase(needCovertAfterSource, "true")) {
+				this.needCovertAfterSource = true;
+				return this;
+			}
+			this.needCovertAfterSource = false;
+			return this;
+		}
 		
 	    public ReliableSpoolDirectoryTailFileEventReader build() throws IOException {
 	        return new ReliableSpoolDirectoryTailFileEventReader(spoolDirectory, completedSuffix,
 	            ignorePattern, targetPattern, targetFilename, trackerDirPath, annotateFileName, fileNameHeader,
 	            annotateBaseName, baseNameHeader, deserializerType,
 	            deserializerContext, deletePolicy, inputCharset, decodeErrorPolicy,
-	            consumeOrder);
+	            consumeOrder, completeFlagFileName, originFileEncoding, needCovertAfterSource);
 	      }
-		
-		
+
 	}
 	
 
