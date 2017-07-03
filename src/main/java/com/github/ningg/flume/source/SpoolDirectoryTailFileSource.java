@@ -21,11 +21,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.ConsumeOrder;
-
-import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.*;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+
+import static com.github.ningg.flume.source.SpoolDirectoryTailFileSourceConfigurationConstants.*;
 
 
 /**
@@ -42,7 +41,9 @@ import com.google.common.base.Throwables;
 public class SpoolDirectoryTailFileSource extends AbstractSource implements Configurable, EventDrivenSource{
 
 	private static final Logger logger = LoggerFactory.getLogger(SpoolDirectoryTailFileSource.class);
-	
+
+	private static final Logger sourcelogger = LoggerFactory.getLogger(SourceCounter.class);
+	private long lastprinttime = 0;
 	// Delay used when polling for new files
 	private static final int POLL_DELAY_MS = 500;
 	
@@ -72,6 +73,10 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 	private boolean hitChannelException = false;
 	private int maxBackoff;
 	private ConsumeOrder consumeOrder;
+	private String completeFileName;
+	private String originFileEncoding;
+	private String needConvertAfterSource;
+
 	
 	@Override
 	public synchronized void start(){
@@ -98,6 +103,9 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 							.inputCharset(inputCharset)
 							.decodeErrorPolicy(decodeErrorPolicy)
 							.consumeOrder(consumeOrder)
+							.completeFlagFileName(completeFileName)
+							.originFileEncoding(originFileEncoding)
+							.needCovertAfterSource(needConvertAfterSource)
 							.build();
 		} catch (IOException e) {
 			throw new FlumeException("Error instantiating spooling and tail event parser", e);
@@ -160,9 +168,14 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 		deserializerContext = new Context(context.getSubProperties(DESERIALIZER + "."));
 		
 		consumeOrder = ConsumeOrder.valueOf(context.getString(CONSUME_ORDER, DEFAULT_CONSUME_ORDER.toString()).toUpperCase());
-		
+		completeFileName = getName()+"_cflag.txt";
+
+		//原始文件的编码格式，为防止中文问题，中间buff采用了ISO-8859-1的编码格式，
+		//因为想发到kafka上是utf-8， 如果源文件是gbk，则发到sink前还需要转一次
+		originFileEncoding = context.getString(ORIGNFILE_ENCODING, DEFAULT_ORIGN_FILEENCODING);
+		needConvertAfterSource = context.getString(NEEDCONVERTAFTERSOURCE, DEFAULT_NEEDCONVERTAFTERSOURCE);
+
 		maxBackoff = context.getInteger(MAX_BACKOFF, DEFAULT_MAX_BACKOFF);
-		
 		if(sourceCounter == null){
 			sourceCounter = new SourceCounter(getName());
 		}
@@ -185,8 +198,12 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 	        while (!Thread.interrupted()) {
 	          List<Event> events = reader.readEvents(batchSize);
 	          if (events.isEmpty()) {
+	        	logger.info("got an empty message List");
 	        	reader.commit();	// Avoid IllegalStateException while tailing file.
 	            break;
+	        	/*TimeUnit.SECONDS.sleep(1);
+	        	System.out.println("here i sleep");
+	        	continue;*/
 	          }
 	          sourceCounter.addToEventReceivedCount(events.size());
 	          sourceCounter.incrementAppendBatchReceivedCount();
@@ -210,7 +227,13 @@ public class SpoolDirectoryTailFileSource extends AbstractSource implements Conf
 	          backoffInterval = 250;
 	          sourceCounter.addToEventAcceptedCount(events.size());
 	          sourceCounter.incrementAppendBatchAcceptedCount();
+			  long currenttime = System.currentTimeMillis();
+			  if ((currenttime - lastprinttime)/1000 >= 10) {
+				sourcelogger.info("source count is {}", sourceCounter);
+				lastprinttime = currenttime;
+			  }
 	        }
+	        
 	        // logger.info("Spooling Directory Tail File Source runner has shutdown.");
 	      } catch (Throwable t) {
 	        logger.error("FATAL: " + SpoolDirectoryTailFileSource.this.toString() + ": " +

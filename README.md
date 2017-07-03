@@ -12,7 +12,7 @@ Extends source of Flume NG for tailing files and folders.
 
 ------------------------
 
-# SpoolDirectoryTailFileSource
+#SpoolDirectoryTailFileSource
 
 * [场景](#场景)
 * [要求](#要求)
@@ -30,7 +30,7 @@ Extends source of Flume NG for tailing files and folders.
 	* [可靠性分析](#可靠性分析)
 * [参考来源](#参考来源)
 	
-## 场景
+##场景
 
 收集日志，具体场景：
 
@@ -47,20 +47,20 @@ Extends source of Flume NG for tailing files and folders.
 **特别说明**：此场景的解决方案就是下文提到的`SpoolDirectoryTailFileSource`。
 
 
-## 要求
+##要求
 
 在上述场景下，要求，实时收集应用的运行日志，整体性能上几点：
 
 * 实时：日志产生后，应以秒级的延时，收集发送走；
 * 可靠：一旦日志收集程序终止，保证重启之后，日志数据不丢失，并且不重复发送；
-* 历史日志文件处理策略：已经收集过的历史日志文件，应立即删除，或者被移送到指定目录；
+* 历史日志文件处理策略：已经收集过的历史日志文件，为了不侵入原文件，因此策略为不修改文件名；
 
 
 
-## 解决方案
+##解决方案
 
 
-### 组件版本
+###组件版本
 
 工程中，涉及到的组件版本，见下表：
 
@@ -69,7 +69,7 @@ Extends source of Flume NG for tailing files and folders.
 |Flume NG|`1.5.2`|
 
 
-### 预装环境
+###预装环境
 
 编译工程前，需要预装环境：
 
@@ -78,7 +78,7 @@ Extends source of Flume NG for tailing files and folders.
 
 
 
-### 编译
+###编译
 
 本工程使用[Apache Maven 3][Apache Maven 3]来编译，可以从[这里](http://maven.apache.org/download.cgi)下载不同OS环境下的Maven安装文件。
 
@@ -87,7 +87,7 @@ Extends source of Flume NG for tailing files and folders.
 
 
 
-### 安装插件
+###安装插件
 
 1. 按照上一部分[编译](#编译)获取工程的jar包：`flume-ng-extends-source-x.x.x.jar`；
 1. 两种方法，可以在Flume下安装插件：
@@ -102,7 +102,7 @@ Extends source of Flume NG for tailing files and folders.
 
 	${FLUME_HOME}
 	 |-- plugins.d
-			|-- flume-ng-extends-source
+			|-- flume-ng-extends-source/lib
 				|-- lib
 					|-- flume-ng-extends-source-x.x.x.jar
 				|-- libext
@@ -120,7 +120,7 @@ Flume插件安装的更多细节，参考[Flume User Guide](https://flume.apache
 
 
 
-### 配置文件
+###配置文件
 
 在flume的配置文件`flume-conf.properties`中，配置`agent`下`SpoolDirectoryTailFileSource` source，参考代码如下：
 
@@ -142,7 +142,7 @@ Flume插件安装的更多细节，参考[Flume User Guide](https://flume.apache
 	agent.sources.spoolDirTailFile.deserializer = LINE
 
 
-### 配置参数详解
+###配置参数详解
 
 详细配置参数如下表（Required properties are in **bold**.）：
 
@@ -174,6 +174,8 @@ Flume插件安装的更多细节，参考[Flume User Guide](https://flume.apache
 |selector.*	| 	|Depends on the `selector.type` value|
 |interceptors|	–	|Space-separated list of interceptors|
 |interceptors.*	|  |  |
+|inputCharset|ISO8859-1  |Charset which the deserializer treat the buffer content  |
+|originFileCharset|  |File Charset|
 
 
 **补充**：上述，selector和interceptor的作用？
@@ -182,7 +184,7 @@ Flume插件安装的更多细节，参考[Flume User Guide](https://flume.apache
 * interceptor：在event进入channel之前，修改或者删除event，多个interceptor构成一条链；
 	
 	
-### 约定条件
+###约定条件
 
 使用上述`SpoolDirectoryTailFileSource`的几个约束：
 
@@ -196,7 +198,7 @@ Flume插件安装的更多细节，参考[Flume User Guide](https://flume.apache
 	* 解决思路：技术上解决不是问题，关键是策略，当文件名称相同时，如何应对；
 
 
-## 交流反馈
+##交流反馈
 
 如果你对这一工程有任何建议，几个途径联系我：
 
@@ -204,10 +206,10 @@ Flume插件安装的更多细节，参考[Flume User Guide](https://flume.apache
 * [在bolg发表评论](http://ningg.github.io/project-flume-ng-extends-source/)
 
 
-## 附录
+##附录
 
 
-### 方案灵感来源
+###方案灵感来源
 
 遇到问题去收集资料，对现有的Flume source进行了简单的浏览，发现Flume的Spooling Directory Source机制，很有意思，几点：
 
@@ -232,7 +234,7 @@ __特别说明__：
 	* 当日定论：次日不再编辑前一日的日志；
 
 
-### 可靠性分析
+###可靠性分析
 
 下述3种情况下，`SpoolDirectoryTailFileSource`都有很高的可靠性，保证不丢失数据、不重复发送数据，几种情况*（启动时间、重启时间，两个维度）*：
 
@@ -245,7 +247,7 @@ __特别说明__：
 
 
 
-## 参考来源
+##参考来源
 
 * [Apache Flume NG--User Guide][Apache Flume NG--User Guide]
 * [java.text.SimpleDateFormat][java.text.SimpleDateFormat]
@@ -256,7 +258,7 @@ __特别说明__：
 -----------------------------
 
 
-# KafkaSource
+#KafkaSource
 
 （doing...）正在整理，具体包含：
 
@@ -290,7 +292,7 @@ __特别说明__：
 
 
 
-## 参考来源
+##参考来源
 
 
 * [Flume Deveploger Guide][Flume Deveploger Guide]
